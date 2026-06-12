@@ -1,0 +1,9 @@
+services:
+  olive:
+    build: .
+    container_name: olive-grove
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
