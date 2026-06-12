@@ -7,6 +7,12 @@
       "runtimeArgs": ["compose", "up"],
       "port": 8000,
       "autoPort": false
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["run", "--rm", "-p", "3456:80", "-v", "../landing:/usr/share/nginx/html:ro", "nginx:alpine"],
+      "port": 3456
     }
   ]
 }
