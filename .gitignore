@@ -1,0 +1,11 @@
+# Database (live data — back it up separately)
+data/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

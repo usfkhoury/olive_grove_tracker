@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__3222e1d4-008f-41ab-8080-d43fb7b1df5e__notion-fetch",
+      "PowerShell($r1 = Invoke-WebRequest http://localhost:8000/ -UseBasicParsing; $r2 = Invoke-WebRequest http://localhost:8000/harvests -UseBasicParsing; $r3 = Invoke-WebRequest http://localhost:8000/manifest.webmanifest -UseBasicParsing; \"root: $\\($r1.StatusCode\\), SPA deep link: $\\($r2.StatusCode\\), manifest: $\\($r3.StatusCode\\)\"; \\($r1.Content -match '<title>Olive Grove</title>'\\))",
+      "PowerShell($body = @{date='2026-06-12'; type='Weeding'; notes='test'; tree_ids=@\\(1,2\\)} | ConvertTo-Json; $a = Invoke-RestMethod http://localhost:8000/api/activities -Method Post -Body $body -ContentType 'application/json'; \"created activity $\\($a.id\\) on trees: $\\(\\($a.trees | ForEach-Object label\\) -join ','\\)\"; Invoke-RestMethod \"http://localhost:8000/api/activities/$\\($a.id\\)\" -Method Delete; \"deleted OK\")",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "PowerShell(Remove-Item \"C:\\\\Users\\\\Youssef EL KHOURY\\\\OneDrive\\\\Documents\\\\Git\\\\olive\\\\frontend\\\\src\\\\components\\\\YieldChart.jsx\" -Confirm:$false)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Olive Grove",
+  "short_name": "Olives",
+  "description": "Track activities, harvests, oil and the seasonal calendar of the olive grove",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f2e9",
+  "theme_color": "#4a5d23",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
