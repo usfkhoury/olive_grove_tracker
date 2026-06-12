@@ -35,8 +35,10 @@ frontend/src/
     SeasonBars.jsx  Horizontal bar chart: olives vs oil per season, ratio label
     YieldTrend.jsx  SVG line chart: ratio trend across seasons (Y-axis inverted)
 
-Dockerfile         Two-stage: Node 20 builds frontend → Python 3.12 serves API + static
-docker-compose.yml Port 8000, volume ./data:/data, restart unless-stopped
+Dockerfile              Two-stage: Node 20 builds frontend → Python 3.12 serves API + static
+docker-compose.yml      Local: port 8000, volume ./data:/data, restart unless-stopped
+docker-compose.prod.yml Production: adds Caddy reverse proxy, exposes 80/443, no direct port 8000
+Caddyfile               Caddy config: reverse-proxies olives.usfkhoury.com → olive:8000, auto-TLS
 ```
 
 ## Data model
@@ -73,6 +75,18 @@ docker-compose.yml Port 8000, volume ./data:/data, restart unless-stopped
 - Dates as ISO strings (`YYYY-MM-DD`).
 - `amount_kg` in `OilMovement` is always stored with the correct sign: gifts/home/sale = negative, press/adjustment = positive or negative depending on context.
 - OpenAPI docs available at `/docs` when running locally.
+
+## Production deployment
+
+- **Live URL**: https://olives.usfkhoury.com
+- **Host**: GCP e2-micro VM, region `us-east1` (Always Free tier), Ubuntu 22.04
+- **Reverse proxy**: Caddy 2 (Docker) — auto-provisions Let's Encrypt TLS for the domain
+- **DB**: SQLite at `./data/olive.db` on the VM's 30 GB persistent disk
+- **Deploy command** (run on the VM):
+  ```bash
+  git pull && docker compose -f docker-compose.prod.yml up -d --build
+  ```
+- Do not edit `Caddyfile` unless the domain changes — Caddy re-provisions TLS on any change.
 
 ## Running locally (without Docker)
 

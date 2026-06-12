@@ -27,6 +27,23 @@ Open **http://localhost:8000**.
 
 The PC (and Docker Desktop) must be on for the app to be reachable.
 
+## Production
+
+Live at **https://olives.usfkhoury.com** — deployed on a GCP e2-micro VM (us-east1)
+with Caddy as a reverse proxy and automatic HTTPS via Let's Encrypt.
+
+To deploy an update from the VM:
+
+```bash
+cd olive-grove
+git pull
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Production uses `docker-compose.prod.yml` (Caddy + app, ports 80/443) instead of the
+local `docker-compose.yml` (port 8000 only). The `Caddyfile` at the repo root configures
+the reverse proxy — edit it only if the domain changes.
+
 ## Rebuilding after changes
 
 After editing any file, rebuild and restart the container:
