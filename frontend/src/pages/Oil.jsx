@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api, { fmtDate, today } from '../api.js';
+import useSaveState from '../useSaveState.js';
 
 const KIND_LABELS = {
   press: '🫒 Pressed',
@@ -17,6 +18,7 @@ export default function Oil() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY());
   const [error, setError] = useState('');
+  const { saving, saved, run } = useSaveState();
 
   const load = () => {
     api.get('/oil/summary').then(setSummary).catch((e) => setError(e.message));
@@ -26,11 +28,14 @@ export default function Oil() {
 
   const submit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
-      await api.post('/oil/movements', { ...form, amount_kg: Number(form.amount_kg) });
-      setForm(EMPTY());
-      setShowAdd(false);
-      load();
+      await run(async () => {
+        await api.post('/oil/movements', { ...form, amount_kg: Number(form.amount_kg) });
+        setForm(EMPTY());
+        setShowAdd(false);
+        load();
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -50,6 +55,7 @@ export default function Oil() {
     <>
       <h1>Oil Ledger</h1>
       {error && <p className="error">{error}</p>}
+      {saved && <p className="saved">Saved ✓</p>}
 
       {summary && (
         <div className="stat-grid">
@@ -102,7 +108,9 @@ export default function Oil() {
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               placeholder="e.g. 1 tanake to Amto" />
           </label>
-          <button type="submit">Save</button>
+          <button type="submit" disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
         </form>
       )}
 
