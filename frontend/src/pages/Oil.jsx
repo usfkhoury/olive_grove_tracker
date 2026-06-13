@@ -38,8 +38,12 @@ export default function Oil() {
 
   const remove = async (id) => {
     if (!confirm('Delete this movement?')) return;
-    await api.del(`/oil/movements/${id}`);
-    load();
+    try {
+      await api.del(`/oil/movements/${id}`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (

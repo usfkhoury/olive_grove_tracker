@@ -7,11 +7,6 @@ from ..database import get_db
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-def _validate(data: schemas.TaskIn):
-    if not (1 <= data.start_month <= 12 and 1 <= data.end_month <= 12):
-        raise HTTPException(400, "Months must be between 1 and 12")
-
-
 @router.get("", response_model=list[schemas.TaskOut])
 def list_tasks(db: Session = Depends(get_db)):
     return (
@@ -23,7 +18,6 @@ def list_tasks(db: Session = Depends(get_db)):
 
 @router.post("", response_model=schemas.TaskOut, status_code=201)
 def create_task(data: schemas.TaskIn, db: Session = Depends(get_db)):
-    _validate(data)
     task = models.SeasonalTask(**data.model_dump())
     db.add(task)
     db.commit()
@@ -32,7 +26,6 @@ def create_task(data: schemas.TaskIn, db: Session = Depends(get_db)):
 
 @router.put("/{task_id}", response_model=schemas.TaskOut)
 def update_task(task_id: int, data: schemas.TaskIn, db: Session = Depends(get_db)):
-    _validate(data)
     task = db.get(models.SeasonalTask, task_id)
     if not task:
         raise HTTPException(404, "Task not found")

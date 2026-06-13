@@ -13,7 +13,11 @@
       "PowerShell(node --version)",
       "PowerShell(npm --version)",
       "PowerShell(python --version)",
-      "PowerShell(docker run --rm -d --name olive-smoke -p 18000:8000 olive-review-test | Out-Null; Start-Sleep -Seconds 4; try { $r = Invoke-RestMethod http://localhost:18000/api/dashboard; \"tree_count=$\\($r.tree_count\\) seasons=$\\($r.seasons.Count\\) oil_balance=$\\($r.oil.balance_kg\\)\" } finally { docker rm -f olive-smoke | Out-Null })"
+      "PowerShell(docker run --rm -d --name olive-smoke -p 18000:8000 olive-review-test | Out-Null; Start-Sleep -Seconds 4; try { $r = Invoke-RestMethod http://localhost:18000/api/dashboard; \"tree_count=$\\($r.tree_count\\) seasons=$\\($r.seasons.Count\\) oil_balance=$\\($r.oil.balance_kg\\)\" } finally { docker rm -f olive-smoke | Out-Null })",
+      "Bash(cd \"/c/Users/Youssef EL KHOURY/OneDrive/Documents/Git/blog\" && grep -n \"Comments\\\\|Navigation menu\\\\|Disqus\\\\|services.disqus\\\\|Theme params\" config.toml | head; echo \"---\"; sed -n '66,76p' config.toml; echo \"---total---\"; wc -l config.toml)",
+      "Bash(sed -i '67,72d' config.toml)",
+      "Bash(sed -n '64,70p' config.toml)",
+      "PowerShell(\\(Invoke-RestMethod \"https://hub.docker.com/v2/repositories/hugomods/hugo/tags?name=0.161.1&page_size=100\"\\).results.name | Where-Object { $_ -notmatch 'debian|node|dart|go|git|non-root' })"
     ]
   }
 }

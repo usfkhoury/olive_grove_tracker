@@ -37,8 +37,12 @@ export default function TreeDetail() {
 
   const remove = async () => {
     if (!confirm(`Delete tree ${tree.label} and unlink its history?`)) return;
-    await api.del(`/trees/${id}`);
-    navigate('/trees');
+    try {
+      await api.del(`/trees/${id}`);
+      navigate('/trees');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (

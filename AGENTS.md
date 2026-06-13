@@ -17,7 +17,7 @@ backend/app/
     dashboard.py   GET /api/dashboard — summary data for the home page
     trees.py       CRUD /api/trees
     activities.py  CRUD /api/activities
-    harvests.py    CRUD /api/harvests (auto-syncs oil ledger on every write)
+    harvests.py    CRUD /api/harvests + GET /api/harvests/seasons (auto-syncs oil ledger on every write)
     oil.py         CRUD /api/oil/movements + GET /api/oil/summary
     tasks.py       CRUD /api/tasks (seasonal calendar)
 
@@ -83,6 +83,8 @@ Caddyfile               Caddy config: reverse-proxies olives.usfkhoury.com → o
 
 - All routes are prefixed `/api` (router prefix + app prefix).
 - Dates as ISO strings (`YYYY-MM-DD`).
+- Input validation lives in `schemas.py` (Pydantic `Field` constraints + `Literal` kinds/status), not in routers — invalid payloads get a 422. `OilMovementIn.kind` deliberately excludes `"press"`.
+- Per-season aggregation has a single source of truth: `season_summaries()` in `routers/harvests.py`, served at `GET /api/harvests/seasons` and embedded in `GET /api/dashboard`. The frontend never re-computes it.
 - `amount_kg` in `OilMovement` is always stored with the correct sign: gifts/home/sale = negative, press/adjustment = positive or negative depending on context.
 - OpenAPI docs available at `/docs` when running locally.
 

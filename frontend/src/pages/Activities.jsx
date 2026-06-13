@@ -40,8 +40,12 @@ export default function Activities() {
 
   const remove = async (id) => {
     if (!confirm('Delete this activity?')) return;
-    await api.del(`/activities/${id}`);
-    load();
+    try {
+      await api.del(`/activities/${id}`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (

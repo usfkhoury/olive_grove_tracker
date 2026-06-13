@@ -13,14 +13,17 @@ const sessionRatio = (h) =>
 
 export default function Harvests() {
   const [harvests, setHarvests] = useState([]);
+  const [seasons, setSeasons] = useState([]); // computed server-side, oldest first
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY());
   const [tanakeEdited, setTanakeEdited] = useState(false);
   const [error, setError] = useState('');
   const [openYears, setOpenYears] = useState(null); // null = newest season open
 
-  const load = () =>
+  const load = () => {
     api.get('/harvests').then(setHarvests).catch((e) => setError(e.message));
+    api.get('/harvests/seasons').then(setSeasons).catch((e) => setError(e.message));
+  };
   useEffect(() => { load(); }, []);
 
   const submit = async (e) => {
@@ -44,34 +47,21 @@ export default function Harvests() {
 
   const remove = async (id) => {
     if (!confirm('Delete this pressing session? Its oil will leave the ledger too.')) return;
-    await api.del(`/harvests/${id}`);
-    load();
+    try {
+      await api.del(`/harvests/${id}`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  // Group by year, newest first.
+  // Group by year, newest first (the per-session list under each season card).
   const byYear = harvests.reduce((acc, h) => {
     const y = h.date.slice(0, 4);
     (acc[y] = acc[y] || []).push(h);
     return acc;
   }, {});
   const years = Object.keys(byYear).sort((a, b) => b - a);
-
-  const seasons = years
-    .map((y) => {
-      const list = byYear[y];
-      const olives = list.reduce((s, h) => s + h.olives_kg, 0);
-      const oil = list.reduce((s, h) => s + h.oil_kg, 0);
-      return {
-        year: Number(y),
-        olives_kg: Math.round(olives * 100) / 100,
-        oil_kg: Math.round(oil * 100) / 100,
-        tanake: Math.round(list.reduce((s, h) => s + (h.tanake || 0), 0) * 100) / 100,
-        sessions: list.length,
-        yield_pct: olives ? Math.round((oil / olives) * 1000) / 10 : null,
-        ratio: oil ? Math.round((olives / oil) * 10) / 10 : null,
-      };
-    })
-    .sort((a, b) => a.year - b.year);
 
   const effectiveOpen = openYears ?? new Set(years.slice(0, 1));
   const toggle = (y) => {
@@ -153,6 +143,7 @@ export default function Harvests() {
 
       {years.map((y) => {
         const s = seasons.find((x) => x.year === Number(y));
+        if (!s) return null; // harvests and seasons load in separate requests
         const open = effectiveOpen.has(y);
         return (
           <div className="card season-card" key={y}>

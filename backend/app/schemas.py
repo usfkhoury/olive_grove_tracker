@@ -1,15 +1,16 @@
 from datetime import date as Date
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TreeIn(BaseModel):
-    label: str
-    row: int = 0
-    col: int = 0
+    label: str = Field(min_length=1)
+    row: int = Field(default=0, ge=0)
+    col: int = Field(default=0, ge=0)
     variety: str = ""
     planted_year: int | None = None
-    status: str = "active"
+    status: Literal["active", "removed"] = "active"
     notes: str = ""
 
 
@@ -26,7 +27,7 @@ class TreeRef(BaseModel):
 
 class ActivityIn(BaseModel):
     date: Date
-    type: str
+    type: str = Field(min_length=1)
     notes: str = ""
     tree_ids: list[int] = []
 
@@ -42,9 +43,9 @@ class ActivityOut(BaseModel):
 
 class HarvestIn(BaseModel):
     date: Date
-    olives_kg: float
-    oil_kg: float
-    tanake: float | None = None
+    olives_kg: float = Field(gt=0)
+    oil_kg: float = Field(ge=0)
+    tanake: float | None = Field(default=None, ge=0)
     notes: str = ""
 
 
@@ -56,21 +57,26 @@ class HarvestOut(HarvestIn):
 
 class OilMovementIn(BaseModel):
     date: Date
-    kind: str  # gift | home | sale | adjustment
+    # "press" is deliberately absent — press movements only exist via harvests.
+    kind: Literal["gift", "home", "sale", "adjustment"]
     amount_kg: float
     notes: str = ""
 
 
-class OilMovementOut(OilMovementIn):
+class OilMovementOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    date: Date
+    kind: str  # includes "press" on output
+    amount_kg: float
+    notes: str
     harvest_id: int | None = None
 
 
 class TaskIn(BaseModel):
-    name: str
-    start_month: int
-    end_month: int
+    name: str = Field(min_length=1)
+    start_month: int = Field(ge=1, le=12)
+    end_month: int = Field(ge=1, le=12)  # may be < start_month (wraps past Dec)
     notes: str = ""
 
 

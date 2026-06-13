@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
+from .harvests import season_summaries
 from .oil import _summary
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -20,23 +21,7 @@ def month_in_range(month: int, start: int, end: int) -> bool:
 def dashboard(db: Session = Depends(get_db)):
     today = date.today()
 
-    harvests = db.query(models.Harvest).order_by(models.Harvest.date).all()
-    seasons: dict[int, dict] = {}
-    for h in harvests:
-        s = seasons.setdefault(
-            h.date.year,
-            {"year": h.date.year, "olives_kg": 0.0, "oil_kg": 0.0, "tanake": 0.0, "sessions": 0},
-        )
-        s["olives_kg"] += h.olives_kg
-        s["oil_kg"] += h.oil_kg
-        s["tanake"] += h.tanake or 0
-        s["sessions"] += 1
-    season_list = []
-    for s in sorted(seasons.values(), key=lambda x: x["year"]):
-        s = {k: round(v, 2) if isinstance(v, float) else v for k, v in s.items()}
-        s["yield_pct"] = round(s["oil_kg"] / s["olives_kg"] * 100, 1) if s["olives_kg"] else None
-        s["ratio"] = round(s["olives_kg"] / s["oil_kg"], 1) if s["oil_kg"] else None
-        season_list.append(s)
+    season_list = season_summaries(db)
 
     tasks = db.query(models.SeasonalTask).order_by(models.SeasonalTask.start_month).all()
     active, upcoming = [], []
