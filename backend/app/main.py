@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import models  # noqa: F401 — registers models with Base
 from .database import SessionLocal, engine
 from .migrations import init_db
-from .routers import activities, dashboard, harvests, oil, tasks, trees
+from .routers import activities, dashboard, export, harvests, oil, tasks, trees
 from .seed import seed_if_empty
 
 
@@ -24,7 +24,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Olive Grove", version="1.0.0", lifespan=lifespan)
 
-for r in (dashboard, trees, activities, harvests, oil, tasks):
+for r in (dashboard, trees, activities, harvests, oil, tasks, export):
     app.include_router(r.router, prefix="/api")
 
 

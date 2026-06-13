@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api, { fmtDate } from '../api.js';
+import useSaveState from '../useSaveState.js';
 
 export default function TreeDetail() {
   const { id } = useParams();
@@ -8,7 +9,7 @@ export default function TreeDetail() {
   const [tree, setTree] = useState(null);
   const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
-  const [saved, setSaved] = useState(false);
+  const { saving, saved, run } = useSaveState();
 
   useEffect(() => {
     api.get(`/trees/${id}`).then(setTree).catch((e) => setError(e.message));
@@ -20,16 +21,17 @@ export default function TreeDetail() {
 
   const save = async (e) => {
     e.preventDefault();
+    setError('');
     try {
-      const updated = await api.put(`/trees/${id}`, {
-        ...tree,
-        row: Number(tree.row),
-        col: Number(tree.col),
-        planted_year: tree.planted_year ? Number(tree.planted_year) : null,
+      await run(async () => {
+        const updated = await api.put(`/trees/${id}`, {
+          ...tree,
+          row: Number(tree.row),
+          col: Number(tree.col),
+          planted_year: tree.planted_year ? Number(tree.planted_year) : null,
+        });
+        setTree(updated);
       });
-      setTree(updated);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1500);
     } catch (err) {
       setError(err.message);
     }
@@ -95,7 +97,9 @@ export default function TreeDetail() {
           <textarea value={tree.notes}
             onChange={(e) => setTree({ ...tree, notes: e.target.value })} />
         </label>
-        <button type="submit">{saved ? 'Saved ✓' : 'Save changes'}</button>
+        <button type="submit" disabled={saving}>
+          {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save changes'}
+        </button>
         <button type="button" className="danger" onClick={remove}>Delete tree</button>
       </form>
 

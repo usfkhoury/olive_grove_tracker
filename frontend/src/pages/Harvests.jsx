@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api, { today } from '../api.js';
 import SeasonBars from '../components/SeasonBars.jsx';
 import YieldTrend from '../components/YieldTrend.jsx';
+import useSaveState from '../useSaveState.js';
 
 const EMPTY = () => ({ date: today(), olives_kg: '', oil_kg: '', tanake: '', notes: '' });
 
@@ -19,6 +20,7 @@ export default function Harvests() {
   const [tanakeEdited, setTanakeEdited] = useState(false);
   const [error, setError] = useState('');
   const [openYears, setOpenYears] = useState(null); // null = newest season open
+  const { saving, saved, run } = useSaveState();
 
   const load = () => {
     api.get('/harvests').then(setHarvests).catch((e) => setError(e.message));
@@ -28,18 +30,21 @@ export default function Harvests() {
 
   const submit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
-      await api.post('/harvests', {
-        date: form.date,
-        olives_kg: Number(form.olives_kg),
-        oil_kg: Number(form.oil_kg),
-        tanake: form.tanake === '' ? null : Number(form.tanake),
-        notes: form.notes,
+      await run(async () => {
+        await api.post('/harvests', {
+          date: form.date,
+          olives_kg: Number(form.olives_kg),
+          oil_kg: Number(form.oil_kg),
+          tanake: form.tanake === '' ? null : Number(form.tanake),
+          notes: form.notes,
+        });
+        setForm(EMPTY());
+        setTanakeEdited(false);
+        setShowAdd(false);
+        load();
       });
-      setForm(EMPTY());
-      setTanakeEdited(false);
-      setShowAdd(false);
-      load();
     } catch (err) {
       setError(err.message);
     }
@@ -80,6 +85,7 @@ export default function Harvests() {
     <>
       <h1>Harvest & Pressing</h1>
       {error && <p className="error">{error}</p>}
+      {saved && <p className="saved">Saved ✓</p>}
 
       <button className="add-toggle" onClick={() => setShowAdd(!showAdd)}>
         {showAdd ? 'Cancel' : '+ Add Pressing Session'}
@@ -127,7 +133,9 @@ export default function Harvests() {
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               placeholder="which press, waiting time, fruit condition…" />
           </label>
-          <button type="submit">Save session</button>
+          <button type="submit" disabled={saving}>
+            {saving ? 'Saving…' : 'Save session'}
+          </button>
         </form>
       )}
 
