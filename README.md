@@ -55,6 +55,16 @@ docker compose up -d --build
 This rebuilds the image (frontend + backend) and restarts the container in one step.
 The database in `./data/` is untouched — your data persists across rebuilds.
 
+Two rules when changing backend code (details in `AGENTS.md`):
+
+- **Changing a model's columns?** Append the matching `ALTER TABLE` to
+  `MIGRATIONS` in `backend/app/migrations.py` — `create_all` never alters
+  existing tables, so without it the live database keeps the old schema.
+- **Touching harvests or the oil ledger?** Run the tests:
+  ```powershell
+  docker run --rm -v "${PWD}\backend:/b" -w /b python:3.12-slim sh -c "pip install -q -r requirements.txt -r requirements-dev.txt && pytest -q"
+  ```
+
 For a fully clean rebuild (clears Docker layer cache):
 
 ```powershell
