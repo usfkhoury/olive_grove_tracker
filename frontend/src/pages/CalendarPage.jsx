@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api, { MONTHS } from '../api.js';
+import useSaveState from '../useSaveState.js';
 
 const EMPTY = { name: '', start_month: 1, end_month: 1, notes: '' };
 
@@ -12,6 +13,7 @@ export default function CalendarPage() {
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
+  const { saving, saved, run } = useSaveState();
 
   const load = () => api.get('/tasks').then(setTasks).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);
@@ -20,18 +22,21 @@ export default function CalendarPage() {
 
   const submit = async (e) => {
     e.preventDefault();
+    setError('');
     const payload = {
       ...form,
       start_month: Number(form.start_month),
       end_month: Number(form.end_month),
     };
     try {
-      if (editingId) await api.put(`/tasks/${editingId}`, payload);
-      else await api.post('/tasks', payload);
-      setForm(EMPTY);
-      setEditingId(null);
-      setShowAdd(false);
-      load();
+      await run(async () => {
+        if (editingId) await api.put(`/tasks/${editingId}`, payload);
+        else await api.post('/tasks', payload);
+        setForm(EMPTY);
+        setEditingId(null);
+        setShowAdd(false);
+        load();
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -66,6 +71,7 @@ export default function CalendarPage() {
     <>
       <h1>Seasonal Calendar</h1>
       {error && <p className="error">{error}</p>}
+      {saved && <p className="saved">Saved ✓</p>}
 
       <button className="add-toggle" onClick={() => { setShowAdd(!showAdd); setEditingId(null); setForm(EMPTY); }}>
         {showAdd ? 'Cancel' : '+ Add Seasonal Task'}
@@ -94,7 +100,9 @@ export default function CalendarPage() {
             <textarea value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </label>
-          <button type="submit">{editingId ? 'Update task' : 'Save task'}</button>
+          <button type="submit" disabled={saving}>
+            {saving ? 'Saving…' : editingId ? 'Update task' : 'Save task'}
+          </button>
         </form>
       )}
 

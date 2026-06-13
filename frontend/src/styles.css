@@ -167,6 +167,9 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
 }
 .chip.gold { background: var(--chip-gold-bg); color: var(--chip-gold-text); }
 
+.export-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.export-links .chip { text-decoration: none; padding: 6px 12px; font-size: 0.82rem; }
+
 /* ---------- grove map ---------- */
 .grove-map {
   display: grid;
@@ -191,6 +194,34 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
   box-shadow: var(--shadow);
 }
 .tree-dot.removed { background: #b9b6a8; }
+.tree-dot.empty {
+  background: transparent;
+  border: 1px dashed var(--olive-light);
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+/* ---------- grove legend ---------- */
+.grove-legend {
+  display: flex;
+  gap: 14px;
+  margin: 8px 0 4px;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.grove-legend span { display: flex; align-items: center; gap: 5px; }
+.grove-legend .legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--olive-light);
+}
+.grove-legend .legend-dot.removed { background: #b9b6a8; }
+.grove-legend .legend-dot.empty {
+  background: transparent;
+  border: 1px dashed var(--olive-light);
+  opacity: 0.6;
+}
 
 /* ---------- calendar ---------- */
 .month-card { border-left: 4px solid transparent; }
@@ -258,7 +289,10 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
 .yield-down { color: var(--danger); }
 
 .error { color: var(--danger); font-size: 0.85rem; }
+.saved { color: var(--olive); font-size: 0.85rem; font-weight: 600; }
 .empty { color: var(--muted); font-size: 0.9rem; padding: 12px 0; }
+
+button:disabled { opacity: 0.6; cursor: default; }
 
 a { color: var(--olive); }
 

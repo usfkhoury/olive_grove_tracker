@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api, { ACTIVITY_TYPES, fmtDate, today } from '../api.js';
+import useSaveState from '../useSaveState.js';
 
 const EMPTY = () => ({ date: today(), type: 'Fertilizing', notes: '', tree_ids: [] });
 
@@ -12,6 +13,7 @@ export default function Activities() {
   const [form, setForm] = useState(EMPTY());
   const [error, setError] = useState('');
   const [filter, setFilter] = useState(EMPTY_FILTER);
+  const { saving, saved, run } = useSaveState();
 
   const filterActive =
     filter.q || filter.from || filter.to || filter.type;
@@ -47,11 +49,14 @@ export default function Activities() {
 
   const submit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
-      await api.post('/activities', form);
-      setForm(EMPTY());
-      setShowAdd(false);
-      load();
+      await run(async () => {
+        await api.post('/activities', form);
+        setForm(EMPTY());
+        setShowAdd(false);
+        load();
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -78,6 +83,7 @@ export default function Activities() {
         )}
       </h1>
       {error && <p className="error">{error}</p>}
+      {saved && <p className="saved">Saved ✓</p>}
 
       <button className="add-toggle" onClick={() => setShowAdd(!showAdd)}>
         {showAdd ? 'Cancel' : '+ Log Activity'}
@@ -126,7 +132,9 @@ export default function Activities() {
               ))}
             </div>
           </label>
-          <button type="submit">Save activity</button>
+          <button type="submit" disabled={saving}>
+            {saving ? 'Saving…' : 'Save activity'}
+          </button>
         </form>
       )}
 

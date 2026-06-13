@@ -97,6 +97,29 @@ export default function Dashboard() {
           <Link to="/activities">All activity →</Link>
         </div>
       </div>
+
+      <h2>Export & Backup</h2>
+      <div className="card">
+        <p className="sub" style={{ color: 'var(--muted)', marginBottom: 10 }}>
+          Download your records as spreadsheets, or a full JSON backup.
+        </p>
+        <div className="export-links">
+          {[
+            ['trees', 'Trees'],
+            ['activities', 'Activities'],
+            ['harvests', 'Harvests'],
+            ['oil', 'Oil ledger'],
+            ['tasks', 'Calendar'],
+          ].map(([entity, label]) => (
+            <a key={entity} className="chip" href={`/api/export/${entity}.csv`} download>
+              {label} CSV
+            </a>
+          ))}
+          <a className="chip gold" href="/api/export/all.json" download>
+            Full backup (JSON)
+          </a>
+        </div>
+      </div>
     </>
   );
 }
