@@ -5,11 +5,12 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import models  # noqa: F401 — registers models with Base
-from .database import Base, SessionLocal, engine
+from .database import SessionLocal, engine
+from .migrations import init_db
 from .routers import activities, dashboard, harvests, oil, tasks, trees
 from .seed import seed_if_empty
 
-Base.metadata.create_all(engine)
+init_db(engine)
 with SessionLocal() as _db:
     seed_if_empty(_db)
 

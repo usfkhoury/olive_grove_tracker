@@ -7,10 +7,11 @@ Single Docker container: FastAPI backend + React SPA + SQLite database.
 
 ```
 backend/app/
-  main.py          FastAPI app: creates DB tables, seeds data, mounts SPA
+  main.py          FastAPI app: runs init_db (create/migrate), seeds data, mounts SPA
   database.py      SQLite engine (OLIVE_DB env var → data/olive.db), SessionLocal, get_db
   models.py        SQLAlchemy ORM models
   schemas.py       Pydantic v2 schemas (In/Out pairs)
+  migrations.py    init_db + MIGRATIONS list (PRAGMA user_version-based ALTERs)
   seed.py          One-time seed: 32 trees, 15 pressing sessions, 9 seasonal tasks
   routers/
     dashboard.py   GET /api/dashboard — summary data for the home page
@@ -19,6 +20,10 @@ backend/app/
     harvests.py    CRUD /api/harvests (auto-syncs oil ledger on every write)
     oil.py         CRUD /api/oil/movements + GET /api/oil/summary
     tasks.py       CRUD /api/tasks (seasonal calendar)
+
+backend/tests/
+  conftest.py      Points OLIVE_DB at a temp file before importing the app
+  test_harvest_ledger.py  Guards the harvest↔oil-ledger invariant
 
 frontend/src/
   api.js           Base fetch wrapper, helpers (today, fmtDate, ACTIVITY_TYPES, MONTHS)
@@ -53,7 +58,12 @@ Caddyfile               Caddy config: reverse-proxies olives.usfkhoury.com → o
 
 ## Critical invariants
 
-- **Oil ledger integrity**: every `POST /api/harvests` creates or updates an `OilMovement` with `kind="press"` and `amount_kg = oil_kg`. `DELETE /api/harvests/{id}` deletes the matching movement first. Never create/delete `press`-kind movements directly.
+- **Oil ledger integrity**: every `POST /api/harvests` creates or updates an `OilMovement` with `kind="press"` and `amount_kg = oil_kg`. `DELETE /api/harvests/{id}` deletes the matching movement first. Never create/delete `press`-kind movements directly. This invariant is covered by `backend/tests/test_harvest_ledger.py` — run the tests after touching harvests/oil code:
+  ```powershell
+  cd backend; pip install -r requirements.txt -r requirements-dev.txt; pytest
+  ```
+- **Schema changes need a migration**: `create_all` never alters existing tables. Any change to an existing model's columns MUST come with a matching SQL statement appended to `MIGRATIONS` in `backend/app/migrations.py` (applied in order, tracked via `PRAGMA user_version`). Brand-new tables need no entry. Never reorder or edit past entries.
+- **Dependencies are pinned** (`requirements.txt` exact versions, `frontend/package-lock.json` + `npm ci` in the Dockerfile) so a VM rebuild can't pull surprise upgrades. Bump versions deliberately and run the tests.
 - **`seed_if_empty`** checks for existing Tree or Harvest rows before inserting anything. Never drops or truncates tables.
 - **Pydantic v2**: all `Out` schemas use `model_config = ConfigDict(from_attributes=True)`. Use `model_dump(mode="json")` when you need JSON-serialisable dicts.
 - **`yield_pct`** is a computed `@property` on `Harvest` (kept for schema compat) — the UI uses **ratio** (`olives_kg / oil_kg`, lower is better). No percentage signs appear anywhere in the UI.
