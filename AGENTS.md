@@ -20,25 +20,30 @@ backend/app/
     harvests.py    CRUD /api/harvests + GET /api/harvests/seasons (auto-syncs oil ledger on every write)
     oil.py         CRUD /api/oil/movements + GET /api/oil/summary
     tasks.py       CRUD /api/tasks (seasonal calendar)
+    export.py      GET /api/export/{entity}.csv (trees/activities/harvests/oil/tasks) + GET /api/export/all.json
 
 backend/tests/
-  conftest.py      Points OLIVE_DB at a temp file before importing the app
+  conftest.py           Points OLIVE_DB at a temp file before importing the app
   test_harvest_ledger.py  Guards the harvest↔oil-ledger invariant
+  test_export.py        Covers CSV exports and the full JSON backup endpoint
 
 frontend/src/
   api.js           Base fetch wrapper, helpers (today, fmtDate, ACTIVITY_TYPES, MONTHS)
-  App.jsx          React Router routes + bottom nav
+  App.jsx          React Router routes + bottom nav; top bar with theme toggle (light/dark/auto)
+  styles.css       All CSS; uses CSS custom properties for full light/dark theming
+  useSaveState.js  Hook: { saving, saved, run } — wraps async form submits with Saving…/Saved ✓ state
   pages/
-    Dashboard.jsx  Home: oil stock, season summary, upcoming tasks, SeasonBars
-    Trees.jsx      Grove map (CSS grid) + tree list
+    Dashboard.jsx  Home: oil stock, season summary, upcoming tasks, SeasonBars, export download links
+    Trees.jsx      Grove map (CSS grid) + tree list; empty-cell placeholders + active/removed/empty legend
     TreeDetail.jsx Per-tree detail and activity history
-    Activities.jsx Activity log + add form
+    Activities.jsx Activity log + add form; filter by keyword, date range, and activity type
     Harvests.jsx   Pressing sessions grouped by season; SeasonBars + YieldTrend
     Oil.jsx        Oil ledger: movements list + add form
     CalendarPage.jsx  Seasonal task calendar by month
   components/
-    SeasonBars.jsx  Horizontal bar chart: olives vs oil per season, ratio label
-    YieldTrend.jsx  SVG line chart: ratio trend across seasons (Y-axis inverted)
+    SeasonBars.jsx   Horizontal bar chart: olives vs oil per season, ratio label
+    YieldTrend.jsx   SVG line chart: ratio trend across seasons (Y-axis inverted); uses CSS class names for theming
+    ErrorBoundary.jsx  Class component; wraps <Routes> — catches render errors, shows "Try again" card
 
 Dockerfile              Two-stage: Node 20 builds frontend → Python 3.12 serves API + static
 docker-compose.yml      Local: port 8000, volume ./data:/data, restart unless-stopped

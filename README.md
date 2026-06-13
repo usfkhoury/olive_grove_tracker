@@ -76,12 +76,14 @@ docker compose up -d --build --no-cache
 
 | Page | What it does |
 |---|---|
-| **Home** | Oil stock, current season totals, tasks due this time of year, recent activity, harvest history chart |
-| **Trees** | Map of the grove (8×4 grid by default — edit row/col per tree to match reality), per-tree variety/age/notes and activity history |
-| **Log** | Record fertilizing, plowing, weeding, pruning, spraying, watering… for the whole grove or tagged trees |
+| **Home** | Oil stock, current season totals, tasks due this time of year, recent activity, harvest history chart; download links for all CSV/JSON exports |
+| **Trees** | Map of the grove (8×4 grid by default — edit row/col per tree to match reality), per-tree variety/age/notes and activity history; empty-cell placeholders and legend show occupied vs. vacant grid positions |
+| **Log** | Record fertilizing, plowing, weeding, pruning, spraying, watering… for the whole grove or tagged trees; filter by keyword, date range, and activity type |
 | **Harvest** | Pressing sessions: olives kg → oil kg → tanake (auto-estimated, 16L ≈ 15kg), olives-to-oil ratio computed, grouped per season |
 | **Oil** | Ledger in kg / tanake (16L ≈ 15kg) / liters. Pressings add stock automatically; record gifts, home use, sales, adjustments |
 | **Calendar** | Seasonal tasks by month (pruning Jan–Mar, harvest Oct–Nov, …) — fully editable |
+
+All forms show a **Saving… / Saved ✓** indicator on submit. A theme toggle (top-right) cycles light / dark / auto (follows OS); choice is persisted to `localStorage`.
 
 ## First-time housekeeping
 
@@ -91,10 +93,20 @@ docker compose up -d --build --no-cache
 - **Tree map**: trees are seeded as T1–T32 in an 8×4 grid. Open each tree to
   set its real position, variety and planting year.
 
-## Data & backups
+## Export & backups
 
-Everything lives in one file: `./data/olive.db`. Copy that file to back up;
-restore by putting it back and restarting the container.
+The Dashboard page has one-click download links for every entity as CSV and a full JSON backup:
+
+| Export | URL |
+|---|---|
+| Trees | `/api/export/trees.csv` |
+| Activities | `/api/export/activities.csv` |
+| Harvests | `/api/export/harvests.csv` |
+| Oil ledger | `/api/export/oil.csv` |
+| Calendar tasks | `/api/export/tasks.csv` |
+| Full backup | `/api/export/all.json` |
+
+The raw database file also lives at `./data/olive.db` — copy it to back up; restore by putting it back and restarting the container.
 
 ## Architecture
 
