@@ -11,6 +11,37 @@
   --gold: #c9a227;
   --radius: 12px;
   --shadow: 0 1px 3px rgba(43, 43, 35, 0.12);
+
+  /* Semantic surfaces — routed through vars so the dark theme can remap them. */
+  --border: #e3e0d4;       /* nav top, separators between sections */
+  --hairline: #efede3;     /* thin separators inside lists */
+  --input-bg: #ffffff;
+  --input-border: #d8d5c8;
+  --chip-gold-bg: #f3ead0;
+  --chip-gold-text: #7c6414;
+  --best-text: #854f0b;
+}
+
+/* Dark theme keeps the olive identity: pale/dark olives swap roles so the
+   tokens that were "dark ink on pale" become "light ink on dark surface". */
+:root[data-theme='dark'] {
+  --olive-dark: #aebf72;   /* now used as light ink for headings/values */
+  --olive: #8aa046;        /* button bg + "in" amounts, bright enough on dark */
+  --olive-light: #9bb157;
+  --olive-pale: #2f3325;   /* subtle dark olive surface (stats, chips, tracks) */
+  --bg: #15170f;
+  --card: #20231a;
+  --text: #e8e6da;
+  --muted: #a3a08f;
+  --danger: #e07a6f;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --border: #343829;
+  --hairline: #30342699;
+  --input-bg: #1a1c14;
+  --input-border: #3d4231;
+  --chip-gold-bg: #3a3320;
+  --chip-gold-text: #e0c873;
+  --best-text: #e0b85a;
 }
 
 * { box-sizing: border-box; }
@@ -62,7 +93,7 @@ nav.bottom {
   right: 0;
   display: flex;
   background: var(--card);
-  border-top: 1px solid #e3e0d4;
+  border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 10;
 }
@@ -84,9 +115,10 @@ label.field { display: grid; gap: 4px; font-size: 0.8rem; color: var(--muted); }
 input, select, textarea {
   font: inherit;
   padding: 10px;
-  border: 1px solid #d8d5c8;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--input-bg);
+  color: var(--text);
   width: 100%;
 }
 textarea { resize: vertical; min-height: 56px; }
@@ -115,7 +147,7 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
   align-items: flex-start;
   gap: 8px;
   padding: 10px 0;
-  border-bottom: 1px solid #efede3;
+  border-bottom: 1px solid var(--hairline);
 }
 .item:last-child { border-bottom: 0; }
 .item .title { font-weight: 600; }
@@ -133,7 +165,7 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
   font-size: 0.74rem;
   margin: 2px 4px 2px 0;
 }
-.chip.gold { background: #f3ead0; color: #7c6414; }
+.chip.gold { background: var(--chip-gold-bg); color: var(--chip-gold-text); }
 
 /* ---------- grove map ---------- */
 .grove-map {
@@ -214,7 +246,7 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
   gap: 4px 8px;
   align-items: center;
   padding: 7px 0;
-  border-top: 1px solid #efede3;
+  border-top: 1px solid var(--hairline);
   font-size: 0.8rem;
 }
 .session-date { color: var(--muted); }
@@ -229,6 +261,43 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
 .empty { color: var(--muted); font-size: 0.9rem; padding: 12px 0; }
 
 a { color: var(--olive); }
+
+/* ---------- top bar ---------- */
+header.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px calc(10px + env(safe-area-inset-top));
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+header.topbar .brand {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--olive-dark);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.theme-toggle {
+  background: var(--olive-pale);
+  color: var(--olive-dark);
+  padding: 6px 10px;
+  font-size: 1rem;
+  line-height: 1;
+  border-radius: 999px;
+}
+
+/* ---------- chart colors (themable) ---------- */
+.chart-axis { fill: var(--muted); }
+.chart-avg { stroke: var(--muted); opacity: 0.6; }
+.chart-line { stroke: var(--olive); }
+.chart-dot { fill: var(--olive); }
+.chart-dot.best { fill: var(--gold); }
+.chart-label.best { fill: var(--best-text); }
 
 @media (min-width: 700px) {
   nav.bottom a { font-size: 0.78rem; }
