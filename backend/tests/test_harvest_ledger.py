@@ -98,7 +98,26 @@ def test_press_kind_cannot_be_created_via_oil_api(client):
         "/api/oil/movements",
         json={"date": "2026-11-01", "kind": "press", "amount_kg": 10, "notes": ""},
     )
-    assert res.status_code == 400
+    # rejected by schema validation — "press" is not an accepted input kind
+    assert res.status_code == 422
+
+
+def test_invalid_harvest_payloads_are_rejected(client):
+    bad = [
+        {"date": "2026-11-01", "olives_kg": -5, "oil_kg": 1},
+        {"date": "2026-11-01", "olives_kg": 0, "oil_kg": 1},
+        {"date": "2026-11-01", "olives_kg": 100, "oil_kg": -1},
+        {"date": "2026-11-01", "olives_kg": 100, "oil_kg": 20, "tanake": -2},
+    ]
+    for payload in bad:
+        assert client.post("/api/harvests", json=payload).status_code == 422, payload
+
+
+def test_seasons_endpoint_matches_dashboard(client):
+    seasons = client.get("/api/harvests/seasons").json()
+    dashboard = client.get("/api/dashboard").json()
+    assert seasons == dashboard["seasons"]
+    assert seasons == sorted(seasons, key=lambda s: s["year"])
 
 
 def test_out_kinds_are_stored_negative(client):

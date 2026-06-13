@@ -22,6 +22,30 @@ def _sync_press_movement(db: Session, harvest: models.Harvest):
     movement.notes = f"Pressing of {harvest.olives_kg:g}kg olives"
 
 
+def season_summaries(db: Session) -> list[dict]:
+    """Per-year totals across all pressing sessions, oldest season first.
+    Single source of truth — used by GET /harvests/seasons and the dashboard."""
+    harvests = db.query(models.Harvest).order_by(models.Harvest.date).all()
+    seasons: dict[int, dict] = {}
+    for h in harvests:
+        s = seasons.setdefault(
+            h.date.year,
+            {"year": h.date.year, "olives_kg": 0.0, "oil_kg": 0.0, "tanake": 0.0, "sessions": 0},
+        )
+        s["olives_kg"] += h.olives_kg
+        s["oil_kg"] += h.oil_kg
+        s["tanake"] += h.tanake or 0
+        s["sessions"] += 1
+
+    season_list = []
+    for s in sorted(seasons.values(), key=lambda x: x["year"]):
+        s = {k: round(v, 2) if isinstance(v, float) else v for k, v in s.items()}
+        s["yield_pct"] = round(s["oil_kg"] / s["olives_kg"] * 100, 1) if s["olives_kg"] else None
+        s["ratio"] = round(s["olives_kg"] / s["oil_kg"], 1) if s["oil_kg"] else None
+        season_list.append(s)
+    return season_list
+
+
 @router.get("", response_model=list[schemas.HarvestOut])
 def list_harvests(db: Session = Depends(get_db)):
     return (
@@ -29,6 +53,11 @@ def list_harvests(db: Session = Depends(get_db)):
         .order_by(models.Harvest.date.desc(), models.Harvest.id.desc())
         .all()
     )
+
+
+@router.get("/seasons")
+def list_seasons(db: Session = Depends(get_db)):
+    return season_summaries(db)
 
 
 @router.post("", response_model=schemas.HarvestOut, status_code=201)

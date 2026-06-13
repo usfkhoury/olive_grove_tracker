@@ -10,8 +10,9 @@ router = APIRouter(prefix="/oil", tags=["oil"])
 TANAKE_KG = 15.0  # one 16L tanake holds ~15kg of oil
 OIL_DENSITY = TANAKE_KG / 16.0  # kg per liter
 
+# Valid input kinds are enforced by schemas.OilMovementIn ("press" excluded —
+# press movements only exist via the harvests router).
 OUT_KINDS = {"gift", "home", "sale"}
-ALLOWED_KINDS = OUT_KINDS | {"adjustment"}
 
 
 def _summary(db: Session) -> dict:
@@ -39,8 +40,6 @@ def list_movements(db: Session = Depends(get_db)):
 
 @router.post("/movements", response_model=schemas.OilMovementOut, status_code=201)
 def create_movement(data: schemas.OilMovementIn, db: Session = Depends(get_db)):
-    if data.kind not in ALLOWED_KINDS:
-        raise HTTPException(400, f"kind must be one of {sorted(ALLOWED_KINDS)}")
     amount = data.amount_kg
     if data.kind in OUT_KINDS:
         amount = -abs(amount)

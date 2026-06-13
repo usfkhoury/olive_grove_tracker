@@ -14,4 +14,6 @@ from app.main import app  # noqa: E402
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    # Context manager runs the lifespan handler (init_db + seed).
+    with TestClient(app) as c:
+        yield c

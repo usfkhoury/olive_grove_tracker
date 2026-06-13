@@ -40,7 +40,9 @@ export const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-export const today = () => new Date().toISOString().slice(0, 10);
+// Local date, not UTC — toISOString() would yield yesterday between midnight
+// and ~2-3am Lebanon time. en-CA formats as YYYY-MM-DD.
+export const today = () => new Date().toLocaleDateString('en-CA');
 
 export const fmtDate = (iso) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {

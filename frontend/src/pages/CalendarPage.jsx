@@ -46,8 +46,12 @@ export default function CalendarPage() {
 
   const remove = async (id) => {
     if (!confirm('Delete this seasonal task?')) return;
-    await api.del(`/tasks/${id}`);
-    load();
+    try {
+      await api.del(`/tasks/${id}`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const monthSelect = (value, onChange) => (
