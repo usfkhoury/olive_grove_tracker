@@ -8,6 +8,20 @@
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Olive Grove</title>
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash.
+      (function () {
+        var saved = localStorage.getItem('theme');
+        var theme =
+          saved ||
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+        if (theme === 'dark') {
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#20231a');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
