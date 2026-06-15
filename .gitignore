@@ -13,3 +13,6 @@ __pycache__/
 
 # Claude Code local config
 .claude/
+
+# Local env overrides (commit .env.example, never .env)
+.env
