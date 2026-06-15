@@ -1,0 +1,32 @@
+# Keep the Docker build context small and reproducible.
+# The Dockerfile only needs: frontend/ source, backend/app, backend/requirements.txt.
+
+# VCS / editor / agent config
+.git
+.gitignore
+.dockerignore
+.claude/
+
+# Live data — must never enter the image (mounted as a volume at runtime)
+data/
+
+# Python build/test artifacts
+**/__pycache__/
+**/*.py[cod]
+.venv/
+.pytest_cache/
+backend/tests/
+backend/requirements-dev.txt
+
+# Frontend deps/build output (image rebuilds these via `npm ci` + `npm run build`)
+frontend/node_modules/
+frontend/dist/
+
+# Docs & local-only compose/proxy config (not needed inside the image)
+*.md
+docker-compose.yml
+docker-compose.prod.yml
+Caddyfile
+
+# Local env
+.env
