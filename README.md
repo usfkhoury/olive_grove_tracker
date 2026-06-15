@@ -5,7 +5,7 @@ Harvest & Pressing sessions with oil yield, an oil ledger (tanake in/out), a
 per-tree map, and a Lebanese seasonal task calendar. Runs as a **single Docker
 container** with a SQLite database — no other dependencies on the machine.
 
-Pre-seeded with the 2020–2025 pressing history from the old Notion page.
+Pre-seeded with the 2020–2025 pressing history from the old Notion page
 
 ## Run it
 
