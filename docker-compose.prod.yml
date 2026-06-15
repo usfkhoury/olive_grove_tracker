@@ -6,6 +6,8 @@ services:
       - ./data:/data
     environment:
       - OLIVE_DB=/data/olive.db
+      - OLIVE_ADMIN_TOKEN=${OLIVE_ADMIN_TOKEN}
+      - OLIVE_COOKIE_SECURE=true
 
   caddy:
     image: caddy:2-alpine

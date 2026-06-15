@@ -337,3 +337,19 @@ header.topbar .brand {
   nav.bottom a { font-size: 0.78rem; }
   .tree-dot { width: 60px; height: 60px; }
 }
+
+/* ---------- auth modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal-box {
+  width: min(90vw, 360px);
+  padding: 1.5rem;
+}

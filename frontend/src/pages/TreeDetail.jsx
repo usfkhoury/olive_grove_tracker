@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate } from '../api.js';
 import useSaveState from '../useSaveState.js';
 
@@ -9,6 +10,7 @@ export default function TreeDetail() {
   const [tree, setTree] = useState(null);
   const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
+  const { isOwner } = useAuth();
   const { saving, saved, run } = useSaveState();
 
   useEffect(() => {
@@ -52,16 +54,16 @@ export default function TreeDetail() {
       <p><Link to="/trees">← All trees</Link></p>
       <h1>🌳 {tree.label}</h1>
 
-      <form className="panel card" onSubmit={save}>
+      <form className="panel card" onSubmit={isOwner ? save : (e) => e.preventDefault()}>
         <div className="row2">
           <label className="field">
             Label
-            <input value={tree.label}
+            <input value={tree.label} readOnly={!isOwner}
               onChange={(e) => setTree({ ...tree, label: e.target.value })} />
           </label>
           <label className="field">
             Status
-            <select value={tree.status}
+            <select value={tree.status} disabled={!isOwner}
               onChange={(e) => setTree({ ...tree, status: e.target.value })}>
               <option value="active">active</option>
               <option value="removed">removed</option>
@@ -71,36 +73,40 @@ export default function TreeDetail() {
         <div className="row2">
           <label className="field">
             Row
-            <input type="number" min="1" value={tree.row}
+            <input type="number" min="1" value={tree.row} readOnly={!isOwner}
               onChange={(e) => setTree({ ...tree, row: e.target.value })} />
           </label>
           <label className="field">
             Column
-            <input type="number" min="1" value={tree.col}
+            <input type="number" min="1" value={tree.col} readOnly={!isOwner}
               onChange={(e) => setTree({ ...tree, col: e.target.value })} />
           </label>
         </div>
         <div className="row2">
           <label className="field">
             Variety
-            <input value={tree.variety}
+            <input value={tree.variety} readOnly={!isOwner}
               onChange={(e) => setTree({ ...tree, variety: e.target.value })} />
           </label>
           <label className="field">
             Planted year
-            <input type="number" value={tree.planted_year ?? ''}
+            <input type="number" value={tree.planted_year ?? ''} readOnly={!isOwner}
               onChange={(e) => setTree({ ...tree, planted_year: e.target.value })} />
           </label>
         </div>
         <label className="field">
           Notes (health, grafts, anything)
-          <textarea value={tree.notes}
+          <textarea value={tree.notes} readOnly={!isOwner}
             onChange={(e) => setTree({ ...tree, notes: e.target.value })} />
         </label>
-        <button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save changes'}
-        </button>
-        <button type="button" className="danger" onClick={remove}>Delete tree</button>
+        {isOwner && (
+          <>
+            <button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save changes'}
+            </button>
+            <button type="button" className="danger" onClick={remove}>Delete tree</button>
+          </>
+        )}
       </form>
 
       <h2>History for this tree</h2>

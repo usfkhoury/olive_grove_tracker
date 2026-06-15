@@ -55,17 +55,17 @@ def test_all_json_backup_has_every_section(client):
     assert len(data["oil_movements"]) == len(client.get("/api/oil/movements").json())
 
 
-def test_csv_reflects_a_new_harvest(client):
-    before = len(parse_csv(client.get("/api/export/harvests.csv").text)) - 1
-    created = client.post(
+def test_csv_reflects_a_new_harvest(authed_client):
+    before = len(parse_csv(authed_client.get("/api/export/harvests.csv").text)) - 1
+    created = authed_client.post(
         "/api/harvests",
         json={"date": "2026-11-03", "olives_kg": 120, "oil_kg": 24, "notes": "export test"},
     )
     assert created.status_code == 201
-    after_rows = parse_csv(client.get("/api/export/harvests.csv").text)[1:]
+    after_rows = parse_csv(authed_client.get("/api/export/harvests.csv").text)[1:]
     assert len(after_rows) == before + 1
     # The new harvest's press movement shows up in the oil export too.
-    oil_rows = parse_csv(client.get("/api/export/oil.csv").text)[1:]
+    oil_rows = parse_csv(authed_client.get("/api/export/oil.csv").text)[1:]
     assert any(r[2] == "press" and r[5] == str(created.json()["id"]) for r in oil_rows)
 
-    client.delete(f"/api/harvests/{created.json()['id']}")
+    authed_client.delete(f"/api/harvests/{created.json()['id']}")

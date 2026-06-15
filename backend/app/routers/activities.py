@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import require_admin
 from ..database import get_db
 
 router = APIRouter(prefix="/activities", tags=["activities"])
@@ -33,7 +34,7 @@ def list_activities(
 
 
 @router.post("", response_model=schemas.ActivityOut, status_code=201)
-def create_activity(data: schemas.ActivityIn, db: Session = Depends(get_db)):
+def create_activity(data: schemas.ActivityIn, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     activity = models.Activity(date=data.date, type=data.type, notes=data.notes)
     activity.trees = _resolve_trees(db, data.tree_ids)
     db.add(activity)
@@ -43,7 +44,7 @@ def create_activity(data: schemas.ActivityIn, db: Session = Depends(get_db)):
 
 @router.put("/{activity_id}", response_model=schemas.ActivityOut)
 def update_activity(
-    activity_id: int, data: schemas.ActivityIn, db: Session = Depends(get_db)
+    activity_id: int, data: schemas.ActivityIn, db: Session = Depends(get_db), _: None = Depends(require_admin)
 ):
     activity = db.get(models.Activity, activity_id)
     if not activity:
@@ -57,7 +58,7 @@ def update_activity(
 
 
 @router.delete("/{activity_id}", status_code=204)
-def delete_activity(activity_id: int, db: Session = Depends(get_db)):
+def delete_activity(activity_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     activity = db.get(models.Activity, activity_id)
     if not activity:
         raise HTTPException(404, "Activity not found")

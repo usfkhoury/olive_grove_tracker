@@ -3,6 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import require_admin
 from ..database import get_db
 
 router = APIRouter(prefix="/oil", tags=["oil"])
@@ -39,7 +40,7 @@ def list_movements(db: Session = Depends(get_db)):
 
 
 @router.post("/movements", response_model=schemas.OilMovementOut, status_code=201)
-def create_movement(data: schemas.OilMovementIn, db: Session = Depends(get_db)):
+def create_movement(data: schemas.OilMovementIn, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     amount = data.amount_kg
     if data.kind in OUT_KINDS:
         amount = -abs(amount)
@@ -52,7 +53,7 @@ def create_movement(data: schemas.OilMovementIn, db: Session = Depends(get_db)):
 
 
 @router.delete("/movements/{movement_id}", status_code=204)
-def delete_movement(movement_id: int, db: Session = Depends(get_db)):
+def delete_movement(movement_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     movement = db.get(models.OilMovement, movement_id)
     if not movement:
         raise HTTPException(404, "Movement not found")

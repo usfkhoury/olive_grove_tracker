@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../AuthContext.jsx';
 import api from '../api.js';
 import useSaveState from '../useSaveState.js';
 
@@ -11,6 +12,8 @@ export default function Trees() {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState('');
   const { saving, saved, run } = useSaveState();
+
+  const { isOwner } = useAuth();
 
   const load = () => api.get('/trees').then(setTrees).catch((e) => setError(e.message));
   useEffect(() => { load(); }, []);
@@ -52,11 +55,13 @@ export default function Trees() {
       {error && <p className="error">{error}</p>}
       {saved && <p className="saved">Saved ✓</p>}
 
-      <button className="add-toggle secondary" onClick={() => setShowAdd(!showAdd)}>
-        {showAdd ? 'Cancel' : '+ Add tree'}
-      </button>
+      {isOwner && (
+        <button className="add-toggle secondary" onClick={() => setShowAdd(!showAdd)}>
+          {showAdd ? 'Cancel' : '+ Add tree'}
+        </button>
+      )}
 
-      {showAdd && (
+      {isOwner && showAdd && (
         <form className="panel card" onSubmit={submit}>
           <label className="field">
             Label

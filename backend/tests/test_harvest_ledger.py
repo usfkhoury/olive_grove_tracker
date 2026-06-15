@@ -35,24 +35,24 @@ def make_harvest(client, **overrides):
     return res.json()
 
 
-def test_create_harvest_creates_press_movement(client):
-    before = balance(client)
-    harvest = make_harvest(client)
+def test_create_harvest_creates_press_movement(authed_client):
+    before = balance(authed_client)
+    harvest = make_harvest(authed_client)
 
-    moves = movements_for(client, harvest["id"])
+    moves = movements_for(authed_client, harvest["id"])
     assert len(moves) == 1
     move = moves[0]
     assert move["kind"] == "press"
     assert move["amount_kg"] == 40
     assert move["date"] == "2026-11-01"
-    assert balance(client) == before + 40
+    assert balance(authed_client) == before + 40
 
 
-def test_update_harvest_updates_same_movement_not_duplicates(client):
-    harvest = make_harvest(client)
-    first_move_id = movements_for(client, harvest["id"])[0]["id"]
+def test_update_harvest_updates_same_movement_not_duplicates(authed_client):
+    harvest = make_harvest(authed_client)
+    first_move_id = movements_for(authed_client, harvest["id"])[0]["id"]
 
-    res = client.put(
+    res = authed_client.put(
         f"/api/harvests/{harvest['id']}",
         json={
             "date": "2026-11-08",
@@ -64,33 +64,33 @@ def test_update_harvest_updates_same_movement_not_duplicates(client):
     )
     assert res.status_code == 200
 
-    moves = movements_for(client, harvest["id"])
+    moves = movements_for(authed_client, harvest["id"])
     assert len(moves) == 1
     assert moves[0]["id"] == first_move_id
     assert moves[0]["amount_kg"] == 48.5
     assert moves[0]["date"] == "2026-11-08"
 
 
-def test_delete_harvest_removes_movement_and_restores_balance(client):
-    before = balance(client)
-    harvest = make_harvest(client, oil_kg=33)
+def test_delete_harvest_removes_movement_and_restores_balance(authed_client):
+    before = balance(authed_client)
+    harvest = make_harvest(authed_client, oil_kg=33)
 
-    res = client.delete(f"/api/harvests/{harvest['id']}")
+    res = authed_client.delete(f"/api/harvests/{harvest['id']}")
     assert res.status_code == 204
-    assert movements_for(client, harvest["id"]) == []
-    assert balance(client) == before
+    assert movements_for(authed_client, harvest["id"]) == []
+    assert balance(authed_client) == before
 
 
-def test_press_movement_cannot_be_deleted_directly(client):
-    harvest = make_harvest(client)
-    move_id = movements_for(client, harvest["id"])[0]["id"]
+def test_press_movement_cannot_be_deleted_directly(authed_client):
+    harvest = make_harvest(authed_client)
+    move_id = movements_for(authed_client, harvest["id"])[0]["id"]
 
-    res = client.delete(f"/api/oil/movements/{move_id}")
+    res = authed_client.delete(f"/api/oil/movements/{move_id}")
     assert res.status_code == 400
-    assert len(movements_for(client, harvest["id"])) == 1
+    assert len(movements_for(authed_client, harvest["id"])) == 1
 
     # cleanup through the proper route still works
-    assert client.delete(f"/api/harvests/{harvest['id']}").status_code == 204
+    assert authed_client.delete(f"/api/harvests/{harvest['id']}").status_code == 204
 
 
 def test_press_kind_cannot_be_created_via_oil_api(client):
@@ -120,16 +120,16 @@ def test_seasons_endpoint_matches_dashboard(client):
     assert seasons == sorted(seasons, key=lambda s: s["year"])
 
 
-def test_out_kinds_are_stored_negative(client):
-    before = balance(client)
-    res = client.post(
+def test_out_kinds_are_stored_negative(authed_client):
+    before = balance(authed_client)
+    res = authed_client.post(
         "/api/oil/movements",
         json={"date": "2026-11-02", "kind": "gift", "amount_kg": 5, "notes": "to Amto"},
     )
     assert res.status_code == 201
     move = res.json()
     assert move["amount_kg"] == -5
-    assert balance(client) == before - 5
+    assert balance(authed_client) == before - 5
 
-    assert client.delete(f"/api/oil/movements/{move['id']}").status_code == 204
-    assert balance(client) == before
+    assert authed_client.delete(f"/api/oil/movements/{move['id']}").status_code == 204
+    assert balance(authed_client) == before

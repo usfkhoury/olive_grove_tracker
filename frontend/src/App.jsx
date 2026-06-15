@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { useAuth } from './AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import LoginModal from './components/LoginModal.jsx';
 import Activities from './pages/Activities.jsx';
 import CalendarPage from './pages/CalendarPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -36,21 +38,45 @@ function useTheme() {
 
 export default function App() {
   const [theme, toggleTheme] = useTheme();
+  const [showLogin, setShowLogin] = useState(false);
+  const { isOwner, logout } = useAuth();
   const location = useLocation();
 
   return (
     <>
       <header className="topbar">
         <span className="brand">🫒 Olive Grove</span>
-        <button
-          className="theme-toggle"
-          onClick={toggleTheme}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {isOwner ? (
+            <button
+              className="secondary small"
+              onClick={logout}
+              title="Log out"
+              style={{ fontSize: '0.8rem' }}
+            >
+              🔓 Logout
+            </button>
+          ) : (
+            <button
+              className="secondary small"
+              onClick={() => setShowLogin(true)}
+              title="Owner login"
+              style={{ fontSize: '1rem', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              🔒
+            </button>
+          )}
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
       </header>
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       <main>
         {/* Key by path so an error on one screen clears when you navigate away. */}
         <ErrorBoundary key={location.pathname}>

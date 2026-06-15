@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../AuthContext.jsx';
 import api, { ACTIVITY_TYPES, fmtDate, today } from '../api.js';
 import useSaveState from '../useSaveState.js';
 
@@ -13,6 +14,7 @@ export default function Activities() {
   const [form, setForm] = useState(EMPTY());
   const [error, setError] = useState('');
   const [filter, setFilter] = useState(EMPTY_FILTER);
+  const { isOwner } = useAuth();
   const { saving, saved, run } = useSaveState();
 
   const filterActive =
@@ -85,11 +87,13 @@ export default function Activities() {
       {error && <p className="error">{error}</p>}
       {saved && <p className="saved">Saved ✓</p>}
 
-      <button className="add-toggle" onClick={() => setShowAdd(!showAdd)}>
-        {showAdd ? 'Cancel' : '+ Log Activity'}
-      </button>
+      {isOwner && (
+        <button className="add-toggle" onClick={() => setShowAdd(!showAdd)}>
+          {showAdd ? 'Cancel' : '+ Log Activity'}
+        </button>
+      )}
 
-      {showAdd && (
+      {isOwner && showAdd && (
         <form className="panel card" onSubmit={submit}>
           <div className="row2">
             <label className="field">
@@ -195,7 +199,7 @@ export default function Activities() {
                 {a.notes ? ` — ${a.notes}` : ''}
               </div>
             </div>
-            <button className="danger small" onClick={() => remove(a.id)}>✕</button>
+            {isOwner && <button className="danger small" onClick={() => remove(a.id)}>✕</button>}
           </div>
         ))}
       </div>

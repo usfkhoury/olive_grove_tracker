@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../AuthContext.jsx';
 import api, { MONTHS } from '../api.js';
 import useSaveState from '../useSaveState.js';
 
@@ -13,6 +14,7 @@ export default function CalendarPage() {
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
+  const { isOwner } = useAuth();
   const { saving, saved, run } = useSaveState();
 
   const load = () => api.get('/tasks').then(setTasks).catch((e) => setError(e.message));
@@ -73,11 +75,13 @@ export default function CalendarPage() {
       {error && <p className="error">{error}</p>}
       {saved && <p className="saved">Saved ✓</p>}
 
-      <button className="add-toggle" onClick={() => { setShowAdd(!showAdd); setEditingId(null); setForm(EMPTY); }}>
-        {showAdd ? 'Cancel' : '+ Add Seasonal Task'}
-      </button>
+      {isOwner && (
+        <button className="add-toggle" onClick={() => { setShowAdd(!showAdd); setEditingId(null); setForm(EMPTY); }}>
+          {showAdd ? 'Cancel' : '+ Add Seasonal Task'}
+        </button>
+      )}
 
-      {showAdd && (
+      {isOwner && showAdd && (
         <form className="panel card" onSubmit={submit}>
           <label className="field">
             Task
@@ -125,7 +129,7 @@ export default function CalendarPage() {
                     {t.notes ? ` — ${t.notes}` : ''}
                   </div>
                 </div>
-                {t.start_month === month && (
+                {isOwner && t.start_month === month && (
                   <div style={{ whiteSpace: 'nowrap' }}>
                     <button className="secondary small" onClick={() => edit(t)}>edit</button>{' '}
                     <button className="danger small" onClick={() => remove(t.id)}>✕</button>

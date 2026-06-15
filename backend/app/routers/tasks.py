@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import require_admin
 from ..database import get_db
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -17,7 +18,7 @@ def list_tasks(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=schemas.TaskOut, status_code=201)
-def create_task(data: schemas.TaskIn, db: Session = Depends(get_db)):
+def create_task(data: schemas.TaskIn, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     task = models.SeasonalTask(**data.model_dump())
     db.add(task)
     db.commit()
@@ -25,7 +26,7 @@ def create_task(data: schemas.TaskIn, db: Session = Depends(get_db)):
 
 
 @router.put("/{task_id}", response_model=schemas.TaskOut)
-def update_task(task_id: int, data: schemas.TaskIn, db: Session = Depends(get_db)):
+def update_task(task_id: int, data: schemas.TaskIn, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     task = db.get(models.SeasonalTask, task_id)
     if not task:
         raise HTTPException(404, "Task not found")
@@ -36,7 +37,7 @@ def update_task(task_id: int, data: schemas.TaskIn, db: Session = Depends(get_db
 
 
 @router.delete("/{task_id}", status_code=204)
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(task_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     task = db.get(models.SeasonalTask, task_id)
     if not task:
         raise HTTPException(404, "Task not found")

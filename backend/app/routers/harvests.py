@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import require_admin
 from ..database import get_db
 
 router = APIRouter(prefix="/harvests", tags=["harvests"])
@@ -61,7 +62,7 @@ def list_seasons(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=schemas.HarvestOut, status_code=201)
-def create_harvest(data: schemas.HarvestIn, db: Session = Depends(get_db)):
+def create_harvest(data: schemas.HarvestIn, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     harvest = models.Harvest(**data.model_dump())
     db.add(harvest)
     db.flush()
@@ -72,7 +73,7 @@ def create_harvest(data: schemas.HarvestIn, db: Session = Depends(get_db)):
 
 @router.put("/{harvest_id}", response_model=schemas.HarvestOut)
 def update_harvest(
-    harvest_id: int, data: schemas.HarvestIn, db: Session = Depends(get_db)
+    harvest_id: int, data: schemas.HarvestIn, db: Session = Depends(get_db), _: None = Depends(require_admin)
 ):
     harvest = db.get(models.Harvest, harvest_id)
     if not harvest:
@@ -85,7 +86,7 @@ def update_harvest(
 
 
 @router.delete("/{harvest_id}", status_code=204)
-def delete_harvest(harvest_id: int, db: Session = Depends(get_db)):
+def delete_harvest(harvest_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     harvest = db.get(models.Harvest, harvest_id)
     if not harvest:
         raise HTTPException(404, "Harvest not found")

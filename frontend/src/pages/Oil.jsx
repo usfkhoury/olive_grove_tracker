@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
 import useSaveState from '../useSaveState.js';
 
@@ -18,6 +19,7 @@ export default function Oil() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY());
   const [error, setError] = useState('');
+  const { isOwner } = useAuth();
   const { saving, saved, run } = useSaveState();
 
   const load = () => {
@@ -74,11 +76,13 @@ export default function Oil() {
         </div>
       )}
 
-      <button className="add-toggle" onClick={() => setShowAdd(!showAdd)} style={{ marginTop: 12 }}>
-        {showAdd ? 'Cancel' : '+ Record Movement'}
-      </button>
+      {isOwner && (
+        <button className="add-toggle" onClick={() => setShowAdd(!showAdd)} style={{ marginTop: 12 }}>
+          {showAdd ? 'Cancel' : '+ Record Movement'}
+        </button>
+      )}
 
-      {showAdd && (
+      {isOwner && showAdd && (
         <form className="panel card" onSubmit={submit}>
           <div className="row2">
             <label className="field">
@@ -126,7 +130,7 @@ export default function Oil() {
               <span className={`amount ${m.amount_kg >= 0 ? 'in' : 'out'}`}>
                 {m.amount_kg >= 0 ? '+' : ''}{m.amount_kg} kg
               </span>
-              {m.kind !== 'press' && (
+              {isOwner && m.kind !== 'press' && (
                 <div><button className="danger small" onClick={() => remove(m.id)}>✕</button></div>
               )}
             </div>

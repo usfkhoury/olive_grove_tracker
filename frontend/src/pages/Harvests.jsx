@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../AuthContext.jsx';
 import api, { today } from '../api.js';
 import SeasonBars from '../components/SeasonBars.jsx';
 import YieldTrend from '../components/YieldTrend.jsx';
@@ -20,6 +21,7 @@ export default function Harvests() {
   const [tanakeEdited, setTanakeEdited] = useState(false);
   const [error, setError] = useState('');
   const [openYears, setOpenYears] = useState(null); // null = newest season open
+  const { isOwner } = useAuth();
   const { saving, saved, run } = useSaveState();
 
   const load = () => {
@@ -87,11 +89,13 @@ export default function Harvests() {
       {error && <p className="error">{error}</p>}
       {saved && <p className="saved">Saved ✓</p>}
 
-      <button className="add-toggle" onClick={() => setShowAdd(!showAdd)}>
-        {showAdd ? 'Cancel' : '+ Add Pressing Session'}
-      </button>
+      {isOwner && (
+        <button className="add-toggle" onClick={() => setShowAdd(!showAdd)}>
+          {showAdd ? 'Cancel' : '+ Add Pressing Session'}
+        </button>
+      )}
 
-      {showAdd && (
+      {isOwner && showAdd && (
         <form className="panel card" onSubmit={submit}>
           <label className="field">
             Date
@@ -199,7 +203,7 @@ export default function Harvests() {
                         {sessionRatio(h)}:1
                       </b>
                     </span>
-                    <button className="danger small" onClick={() => remove(h.id)}>✕</button>
+                    {isOwner && <button className="danger small" onClick={() => remove(h.id)}>✕</button>}
                     {h.notes && <div className="session-note">{h.notes}</div>}
                   </div>
                 ))}
