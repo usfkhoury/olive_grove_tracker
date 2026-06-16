@@ -12,6 +12,34 @@ owner types in.
 
 ---
 
+## 0. Recovery / break-glass (when Google login won't work)
+
+There is **no fallback login credential** by design (see
+[ADR-0001](./adr/0001-google-oidc-no-breakglass-token.md)). If Google sign-in is
+down, or `OLIVE_OWNER_EMAIL` is wrong, or you lose the Gmail account, regain write
+access out-of-band by minting a session cookie on the VM — the `olive_session`
+cookie is just a value signed with `OLIVE_SESSION_SECRET`, so no login endpoint is
+involved:
+
+```bash
+docker compose exec olive python -c "from app.auth import _issue_session; print(_issue_session())"
+```
+
+Then set `olive_session` to that value in the browser (devtools → Application →
+Cookies) and the UI treats you as owner, or pass it straight to the API:
+`curl -b "olive_session=<value>" -X POST https://olives.usfkhoury.com/api/...`.
+This is gated by SSH access to the VM (the same trust level as editing `.env`),
+which is the assumed-always-available escape hatch.
+
+**Revoking a session:** sessions are stateless signed cookies (30-day max-age) with
+no server-side store, so `logout` only clears the cookie in the browser that calls
+it — a leaked/copied session value stays valid until it expires. The only way to
+kill it is to **rotate `OLIVE_SESSION_SECRET`** on the VM and redeploy, which
+invalidates every session at once (you re-login on all your own devices too). That
+is the deliberate "panic button"; there is no per-session revocation.
+
+---
+
 ## 1. How login works today
 
 ### Backend — `backend/app/auth.py`

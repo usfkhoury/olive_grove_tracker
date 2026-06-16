@@ -1,12 +1,19 @@
 services:
   olive:
-    build: .
+    build:
+      context: .
+      args:
+        # Baked into the frontend bundle at build time (see Dockerfile). Must be
+        # set in the VM's .env alongside the runtime vars below.
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
     restart: unless-stopped
     volumes:
       - ./data:/data
     environment:
       - OLIVE_DB=/data/olive.db
-      - OLIVE_ADMIN_TOKEN=${OLIVE_ADMIN_TOKEN}
+      - OLIVE_SESSION_SECRET=${OLIVE_SESSION_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - OLIVE_OWNER_EMAIL=${OLIVE_OWNER_EMAIL}
       - OLIVE_COOKIE_SECURE=true
 
   caddy:

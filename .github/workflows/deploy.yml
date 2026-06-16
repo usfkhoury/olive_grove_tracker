@@ -53,14 +53,31 @@ jobs:
 
       - name: Build and restart
         uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        # App config is forwarded from GitHub Secrets into the remote shell, so
+        # docker compose interpolates ${VAR} at build + run time. Nothing is
+        # hand-maintained in a .env on the VM. VITE_GOOGLE_CLIENT_ID is consumed
+        # by the frontend build arg; the rest are the backend's runtime env.
+        env:
+          OLIVE_SESSION_SECRET: ${{ secrets.OLIVE_SESSION_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          OLIVE_OWNER_EMAIL: ${{ secrets.OLIVE_OWNER_EMAIL }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           fingerprint: SHA256:TWkhkM+EZ2h4YnuPY05Kh8wHQpvnoIoXeJx5WGezGsw
+          # Forward the secrets above into the remote script's environment.
+          envs: OLIVE_SESSION_SECRET,GOOGLE_CLIENT_ID,VITE_GOOGLE_CLIENT_ID,OLIVE_OWNER_EMAIL
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
+            # Fail loudly if any required config is missing, rather than building
+            # a container that 503s on login because a var interpolated to "".
+            for v in OLIVE_SESSION_SECRET GOOGLE_CLIENT_ID VITE_GOOGLE_CLIENT_ID OLIVE_OWNER_EMAIL; do
+              eval "val=\$$v"
+              if [ -z "$val" ]; then echo "Missing required secret: $v" >&2; exit 1; fi
+            done
             docker compose -f docker-compose.prod.yml build --no-cache
             # --force-recreate so Caddy re-reads its bind-mounted Caddyfile.
             # Plain `up -d` leaves the running Caddy on its old config.

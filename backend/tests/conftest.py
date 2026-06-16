@@ -6,7 +6,9 @@ import pytest
 # Point the app at a throwaway database BEFORE importing it — app.main creates
 # tables and seeds on import, and database.py reads OLIVE_DB at import time.
 os.environ["OLIVE_DB"] = os.path.join(tempfile.mkdtemp(), "test-olive.db")
-os.environ["OLIVE_ADMIN_TOKEN"] = "test-secret"
+os.environ["OLIVE_SESSION_SECRET"] = "test-secret"
+os.environ["GOOGLE_CLIENT_ID"] = "test-client-id.apps.googleusercontent.com"
+os.environ["OLIVE_OWNER_EMAIL"] = "owner@example.com"
 os.environ["OLIVE_COOKIE_SECURE"] = "false"
 
 from fastapi.testclient import TestClient  # noqa: E402
@@ -34,8 +36,18 @@ def client():
 
 
 @pytest.fixture()
-def authed_client(client):
-    """Client with a valid session cookie — use for all write operations."""
-    res = client.post("/api/auth/login", json={"token": "test-secret"})
+def authed_client(client, monkeypatch):
+    """Client with a valid session cookie — use for all write operations.
+
+    Logs in through the real /api/auth/google endpoint (so the cookie is set via
+    a normal Set-Cookie response and logout can clear it), mocking google-auth's
+    token verification so no real Google call is made.
+    """
+    monkeypatch.setattr(
+        auth.id_token,
+        "verify_oauth2_token",
+        lambda *args, **kwargs: {"email": "owner@example.com", "email_verified": True},
+    )
+    res = client.post("/api/auth/google", json={"credential": "test"})
     assert res.status_code == 200, f"Login failed: {res.text}"
     return client
