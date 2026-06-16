@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
-import useSaveState from '../useSaveState.js';
+import useCollection from '../useCollection.js';
 
 const KIND_LABELS = {
   press: '🫒 Pressed',
@@ -15,42 +15,28 @@ const EMPTY = () => ({ date: today(), kind: 'home', amount_kg: '', notes: '' });
 
 export default function Oil() {
   const [summary, setSummary] = useState(null);
-  const [movements, setMovements] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY());
-  const [error, setError] = useState('');
   const { isOwner } = useAuth();
-  const { saving, saved, run } = useSaveState();
 
-  const load = () => {
-    api.get('/oil/summary').then(setSummary).catch((e) => setError(e.message));
-    api.get('/oil/movements').then(setMovements).catch(() => {});
-  };
-  useEffect(() => { load(); }, []);
+  const refreshSummary = () =>
+    api.get('/oil/summary').then(setSummary).catch(() => {});
+  const { items: movements, error, create, remove, saving, saved } =
+    useCollection('/oil/movements', { onChange: refreshSummary });
+
+  useEffect(() => { refreshSummary(); }, []);
 
   const submit = async (e) => {
     e.preventDefault();
-    setError('');
-    try {
-      await run(async () => {
-        await api.post('/oil/movements', { ...form, amount_kg: Number(form.amount_kg) });
-        setForm(EMPTY());
-        setShowAdd(false);
-        load();
-      });
-    } catch (err) {
-      setError(err.message);
+    const created = await create({ ...form, amount_kg: Number(form.amount_kg) });
+    if (created) {
+      setForm(EMPTY());
+      setShowAdd(false);
     }
   };
 
-  const remove = async (id) => {
-    if (!confirm('Delete this movement?')) return;
-    try {
-      await api.del(`/oil/movements/${id}`);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  const onDelete = (id) => {
+    if (confirm('Delete this movement?')) remove(id);
   };
 
   return (
@@ -131,7 +117,7 @@ export default function Oil() {
                 {m.amount_kg >= 0 ? '+' : ''}{m.amount_kg} kg
               </span>
               {isOwner && m.kind !== 'press' && (
-                <div><button className="danger small" onClick={() => remove(m.id)}>✕</button></div>
+                <div><button className="danger small" onClick={() => onDelete(m.id)}>✕</button></div>
               )}
             </div>
           </div>
