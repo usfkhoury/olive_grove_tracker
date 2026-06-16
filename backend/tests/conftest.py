@@ -11,7 +11,19 @@ os.environ["OLIVE_COOKIE_SECURE"] = "false"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app import auth  # noqa: E402
 from app.main import app  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit():
+    # The rate limiter keeps failed-login counts in a module-global dict keyed
+    # by client IP. Every test shares the same "testclient" IP, so without this
+    # the 5 failures from test_rate_limit_after_five_failures would linger and
+    # make later logins (the authed_client fixture) get a 429.
+    auth._failures.clear()
+    yield
+    auth._failures.clear()
 
 
 @pytest.fixture()

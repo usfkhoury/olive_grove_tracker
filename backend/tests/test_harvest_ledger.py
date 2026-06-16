@@ -93,8 +93,10 @@ def test_press_movement_cannot_be_deleted_directly(authed_client):
     assert authed_client.delete(f"/api/harvests/{harvest['id']}").status_code == 204
 
 
-def test_press_kind_cannot_be_created_via_oil_api(client):
-    res = client.post(
+# Authenticated: these probe schema validation, which only runs after the
+# require_admin auth check — an unauthenticated client would get 401 first.
+def test_press_kind_cannot_be_created_via_oil_api(authed_client):
+    res = authed_client.post(
         "/api/oil/movements",
         json={"date": "2026-11-01", "kind": "press", "amount_kg": 10, "notes": ""},
     )
@@ -102,7 +104,7 @@ def test_press_kind_cannot_be_created_via_oil_api(client):
     assert res.status_code == 422
 
 
-def test_invalid_harvest_payloads_are_rejected(client):
+def test_invalid_harvest_payloads_are_rejected(authed_client):
     bad = [
         {"date": "2026-11-01", "olives_kg": -5, "oil_kg": 1},
         {"date": "2026-11-01", "olives_kg": 0, "oil_kg": 1},
@@ -110,7 +112,7 @@ def test_invalid_harvest_payloads_are_rejected(client):
         {"date": "2026-11-01", "olives_kg": 100, "oil_kg": 20, "tanake": -2},
     ]
     for payload in bad:
-        assert client.post("/api/harvests", json=payload).status_code == 422, payload
+        assert authed_client.post("/api/harvests", json=payload).status_code == 422, payload
 
 
 def test_seasons_endpoint_matches_dashboard(client):
