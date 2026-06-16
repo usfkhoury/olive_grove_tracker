@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-const AuthContext = createContext({ isOwner: false, login: () => {}, logout: () => {} });
+const AuthContext = createContext({ isOwner: false, loginWithGoogle: () => {}, logout: () => {} });
 
 export function AuthProvider({ children }) {
   const [isOwner, setIsOwner] = useState(false);
@@ -14,11 +14,13 @@ export function AuthProvider({ children }) {
       .catch(() => {});
   }, []);
 
-  const login = useCallback(async (token) => {
-    const res = await fetch('/api/auth/login', {
+  // Exchange a Google Identity Services ID-token (JWT credential) for our own
+  // session cookie. The backend verifies the token and that it belongs to the owner.
+  const loginWithGoogle = useCallback(async (credential) => {
+    const res = await fetch('/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ credential }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -33,7 +35,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isOwner, login, logout }}>
+    <AuthContext.Provider value={{ isOwner, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

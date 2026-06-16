@@ -1,9 +1,16 @@
 services:
   olive:
-    build: .
+    build:
+      context: .
+      args:
+        # Baked into the frontend bundle at build time (see Dockerfile).
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
     container_name: olive-grove
     ports:
       - "8000:8000"
+    # Pass the runtime auth config (session secret, Google client ID, owner email,
+    # cookie-secure flag) into the container.
+    env_file: .env
     volumes:
       - ./data:/data
     restart: unless-stopped

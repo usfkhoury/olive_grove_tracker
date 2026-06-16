@@ -137,11 +137,14 @@ there — the one thing we wanted to avoid. SCP keeps all GitHub auth on the run
 
 ### App login is separate from all of the above
 
-The owner login on the website does **not** use SSH keys. It's a single secret token,
-`OLIVE_ADMIN_TOKEN`, set in the VM's `.env` (see `.env.example`). The browser session is a
-**signed cookie** (not the token itself), so a leaked cookie can't be replayed as the
-password and rotating `OLIVE_ADMIN_TOKEN` invalidates all sessions. Generate a strong token
-with `python -c "import secrets; print(secrets.token_hex(32))"`.
+The owner login on the website does **not** use SSH keys. The owner signs in with
+**Google** (OIDC): only the address in `OLIVE_OWNER_EMAIL` is accepted, verified against the
+`GOOGLE_CLIENT_ID` OAuth client. The browser session is a **signed cookie** (an
+`itsdangerous` token, not a Google token), signed with `OLIVE_SESSION_SECRET`; rotating that
+secret invalidates all sessions. Generate it with
+`python -c "import secrets; print(secrets.token_hex(32))"`. All three are set in the VM's
+`.env` (see `.env.example`); the frontend build needs `VITE_GOOGLE_CLIENT_ID` set to the
+same client ID.
 
 ## Rebuilding after changes
 

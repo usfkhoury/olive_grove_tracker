@@ -8,6 +8,11 @@ specific rows they create (matched via harvest_id), never on totals being
 absolute values.
 """
 
+from datetime import date
+
+from app import ledger, models
+from app.database import SessionLocal
+
 
 def movements_for(client, harvest_id):
     res = client.get("/api/oil/movements")
@@ -120,6 +125,37 @@ def test_seasons_endpoint_matches_dashboard(client):
     dashboard = client.get("/api/dashboard").json()
     assert seasons == dashboard["seasons"]
     assert seasons == sorted(seasons, key=lambda s: s["year"])
+
+
+# Direct unit test of the ledger seam — no HTTP layer. Depends on `client` only
+# to ensure the lifespan ran init_db so the tables exist; rolls back so nothing
+# persists. flush() between calls mirrors the request boundary (each route
+# commits), so the second record_pressing sees the first movement instead of
+# creating a duplicate — the session is autoflush=False.
+def test_record_pressing_keeps_one_movement_per_session(client):
+    db = SessionLocal()
+    try:
+        harvest = models.Harvest(date=date(2027, 11, 1), olives_kg=200, oil_kg=40)
+        db.add(harvest)
+        db.flush()
+
+        ledger.record_pressing(db, harvest)
+        db.flush()
+        harvest.oil_kg = 45  # a correction to the same session
+        ledger.record_pressing(db, harvest)
+        db.flush()
+
+        moves = (
+            db.query(models.OilMovement)
+            .filter(models.OilMovement.harvest_id == harvest.id)
+            .all()
+        )
+        assert len(moves) == 1
+        assert moves[0].amount_kg == 45
+        assert ledger.is_press_movement(moves[0])
+    finally:
+        db.rollback()
+        db.close()
 
 
 def test_out_kinds_are_stored_negative(authed_client):

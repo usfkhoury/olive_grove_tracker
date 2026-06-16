@@ -1,40 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
-import api from '../api.js';
-import useSaveState from '../useSaveState.js';
+import useCollection from '../useCollection.js';
 
 const EMPTY = { label: '', row: 1, col: 1, variety: '', planted_year: '', notes: '' };
 
 export default function Trees() {
-  const [trees, setTrees] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY);
-  const [error, setError] = useState('');
-  const { saving, saved, run } = useSaveState();
-
+  const { items: trees, error, create, saving, saved } = useCollection('/trees');
   const { isOwner } = useAuth();
-
-  const load = () => api.get('/trees').then(setTrees).catch((e) => setError(e.message));
-  useEffect(() => { load(); }, []);
 
   const submit = async (e) => {
     e.preventDefault();
-    setError('');
-    try {
-      await run(async () => {
-        await api.post('/trees', {
-          ...form,
-          row: Number(form.row),
-          col: Number(form.col),
-          planted_year: form.planted_year ? Number(form.planted_year) : null,
-        });
-        setForm(EMPTY);
-        setShowAdd(false);
-        load();
-      });
-    } catch (err) {
-      setError(err.message);
+    const created = await create({
+      ...form,
+      row: Number(form.row),
+      col: Number(form.col),
+      planted_year: form.planted_year ? Number(form.planted_year) : null,
+    });
+    if (created) {
+      setForm(EMPTY);
+      setShowAdd(false);
     }
   };
 

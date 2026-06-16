@@ -1,21 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext.jsx';
 import api, { ACTIVITY_TYPES, fmtDate, today } from '../api.js';
-import useSaveState from '../useSaveState.js';
+import useCollection from '../useCollection.js';
 
 const EMPTY = () => ({ date: today(), type: 'Fertilizing', notes: '', tree_ids: [] });
 
 const EMPTY_FILTER = { q: '', from: '', to: '', type: '' };
 
 export default function Activities() {
-  const [activities, setActivities] = useState([]);
   const [trees, setTrees] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY());
-  const [error, setError] = useState('');
   const [filter, setFilter] = useState(EMPTY_FILTER);
   const { isOwner } = useAuth();
-  const { saving, saved, run } = useSaveState();
+  const { items: activities, error, create, remove, saving, saved } = useCollection('/activities');
 
   const filterActive =
     filter.q || filter.from || filter.to || filter.type;
@@ -33,11 +31,7 @@ export default function Activities() {
     return true;
   });
 
-  const load = () =>
-    api.get('/activities').then(setActivities).catch((e) => setError(e.message));
-
   useEffect(() => {
-    load();
     api.get('/trees').then(setTrees).catch(() => {});
   }, []);
 
@@ -51,27 +45,15 @@ export default function Activities() {
 
   const submit = async (e) => {
     e.preventDefault();
-    setError('');
-    try {
-      await run(async () => {
-        await api.post('/activities', form);
-        setForm(EMPTY());
-        setShowAdd(false);
-        load();
-      });
-    } catch (err) {
-      setError(err.message);
+    const created = await create(form);
+    if (created) {
+      setForm(EMPTY());
+      setShowAdd(false);
     }
   };
 
-  const remove = async (id) => {
-    if (!confirm('Delete this activity?')) return;
-    try {
-      await api.del(`/activities/${id}`);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  const onDelete = (id) => {
+    if (confirm('Delete this activity?')) remove(id);
   };
 
   return (
@@ -199,7 +181,7 @@ export default function Activities() {
                 {a.notes ? ` — ${a.notes}` : ''}
               </div>
             </div>
-            {isOwner && <button className="danger small" onClick={() => remove(a.id)}>✕</button>}
+            {isOwner && <button className="danger small" onClick={() => onDelete(a.id)}>✕</button>}
           </div>
         ))}
       </div>

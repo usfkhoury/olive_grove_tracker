@@ -3,7 +3,7 @@ import { useAuth } from '../AuthContext.jsx';
 import api, { today } from '../api.js';
 import SeasonBars from '../components/SeasonBars.jsx';
 import YieldTrend from '../components/YieldTrend.jsx';
-import useSaveState from '../useSaveState.js';
+import useCollection from '../useCollection.js';
 
 const EMPTY = () => ({ date: today(), olives_kg: '', oil_kg: '', tanake: '', notes: '' });
 
@@ -14,51 +14,39 @@ const sessionRatio = (h) =>
   h.oil_kg ? Math.round((h.olives_kg / h.oil_kg) * 10) / 10 : null;
 
 export default function Harvests() {
-  const [harvests, setHarvests] = useState([]);
   const [seasons, setSeasons] = useState([]); // computed server-side, oldest first
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY());
   const [tanakeEdited, setTanakeEdited] = useState(false);
-  const [error, setError] = useState('');
   const [openYears, setOpenYears] = useState(null); // null = newest season open
   const { isOwner } = useAuth();
-  const { saving, saved, run } = useSaveState();
 
-  const load = () => {
-    api.get('/harvests').then(setHarvests).catch((e) => setError(e.message));
-    api.get('/harvests/seasons').then(setSeasons).catch((e) => setError(e.message));
-  };
-  useEffect(() => { load(); }, []);
+  const refreshSeasons = () =>
+    api.get('/harvests/seasons').then(setSeasons).catch(() => {});
+  const { items: harvests, error, create, remove, saving, saved } =
+    useCollection('/harvests', { onChange: refreshSeasons });
+
+  useEffect(() => { refreshSeasons(); }, []);
 
   const submit = async (e) => {
     e.preventDefault();
-    setError('');
-    try {
-      await run(async () => {
-        await api.post('/harvests', {
-          date: form.date,
-          olives_kg: Number(form.olives_kg),
-          oil_kg: Number(form.oil_kg),
-          tanake: form.tanake === '' ? null : Number(form.tanake),
-          notes: form.notes,
-        });
-        setForm(EMPTY());
-        setTanakeEdited(false);
-        setShowAdd(false);
-        load();
-      });
-    } catch (err) {
-      setError(err.message);
+    const created = await create({
+      date: form.date,
+      olives_kg: Number(form.olives_kg),
+      oil_kg: Number(form.oil_kg),
+      tanake: form.tanake === '' ? null : Number(form.tanake),
+      notes: form.notes,
+    });
+    if (created) {
+      setForm(EMPTY());
+      setTanakeEdited(false);
+      setShowAdd(false);
     }
   };
 
-  const remove = async (id) => {
-    if (!confirm('Delete this pressing session? Its oil will leave the ledger too.')) return;
-    try {
-      await api.del(`/harvests/${id}`);
-      load();
-    } catch (err) {
-      setError(err.message);
+  const onDelete = (id) => {
+    if (confirm('Delete this pressing session? Its oil will leave the ledger too.')) {
+      remove(id);
     }
   };
 
@@ -203,7 +191,7 @@ export default function Harvests() {
                         {sessionRatio(h)}:1
                       </b>
                     </span>
-                    {isOwner && <button className="danger small" onClick={() => remove(h.id)}>✕</button>}
+                    {isOwner && <button className="danger small" onClick={() => onDelete(h.id)}>✕</button>}
                     {h.notes && <div className="session-note">{h.notes}</div>}
                   </div>
                 ))}
