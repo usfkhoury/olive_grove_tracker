@@ -3,6 +3,10 @@ name: Deploy to production
 on:
   push:
     branches: [main]
+    # Docs-only changes don't affect the running app — skip the (slow,
+    # downtime-incurring) redeploy for Markdown edits.
+    paths-ignore:
+      - '**.md'
 
 # checkout clones this private repo on the runner using GITHUB_TOKEN, which
 # only needs read access. The VM never touches GitHub — the runner pushes the

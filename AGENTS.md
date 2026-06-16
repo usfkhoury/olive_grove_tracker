@@ -13,6 +13,7 @@ backend/app/
   schemas.py       Pydantic v2 schemas (In/Out pairs)
   migrations.py    init_db + MIGRATIONS list (PRAGMA user_version-based ALTERs)
   seed.py          One-time seed: 32 trees, 15 pressing sessions, 9 seasonal tasks
+  auth.py          Owner auth: /api/auth login/logout/verify, signed-cookie session, require_admin dependency, per-IP login rate limit
   routers/
     dashboard.py   GET /api/dashboard — summary data for the home page
     trees.py       CRUD /api/trees
@@ -23,7 +24,8 @@ backend/app/
     export.py      GET /api/export/{entity}.csv (trees/activities/harvests/oil/tasks) + GET /api/export/all.json
 
 backend/tests/
-  conftest.py           Points OLIVE_DB at a temp file before importing the app
+  conftest.py           Points OLIVE_DB at a temp file before importing the app; autouse fixture resets the login rate-limit state between tests
+  test_auth.py          Login/session/rate-limit behaviour; public GETs vs auth-gated writes
   test_harvest_ledger.py  Guards the harvest↔oil-ledger invariant
   test_export.py        Covers CSV exports and the full JSON backup endpoint
 
@@ -67,6 +69,7 @@ Caddyfile               Caddy config: reverse-proxies olives.usfkhoury.com → o
   ```powershell
   cd backend; pip install -r requirements.txt -r requirements-dev.txt; pytest
   ```
+- **Auth on writes**: GET endpoints are public; every POST/PUT/DELETE takes `_: None = Depends(require_admin)`. The session cookie is an `itsdangerous`-signed token (signing key = `OLIVE_ADMIN_TOKEN`), never the raw token — so rotating `OLIVE_ADMIN_TOKEN` invalidates all sessions. `OilMovementIn.kind` excludes `"press"`; the login is rate-limited per client IP (read from `X-Forwarded-For` behind Caddy). When adding a mutating route, add the `require_admin` dependency and a test in `test_auth.py`.
 - **Schema changes need a migration**: `create_all` never alters existing tables. Any change to an existing model's columns MUST come with a matching SQL statement appended to `MIGRATIONS` in `backend/app/migrations.py` (applied in order, tracked via `PRAGMA user_version`). Brand-new tables need no entry. Never reorder or edit past entries.
 - **Dependencies are pinned** (`requirements.txt` exact versions, `frontend/package-lock.json` + `npm ci` in the Dockerfile) so a VM rebuild can't pull surprise upgrades. Bump versions deliberately and run the tests.
 - **`seed_if_empty`** checks for existing Tree or Harvest rows before inserting anything. Never drops or truncates tables.
@@ -99,10 +102,16 @@ Caddyfile               Caddy config: reverse-proxies olives.usfkhoury.com → o
 - **Host**: GCP e2-micro VM, region `us-east1` (Always Free tier), Ubuntu 22.04
 - **Reverse proxy**: Caddy 2 (Docker) — auto-provisions Let's Encrypt TLS for the domain
 - **DB**: SQLite at `./data/olive.db` on the VM's 30 GB persistent disk
-- **Deploy command** (run on the VM):
-  ```bash
-  git pull && docker compose -f docker-compose.prod.yml up -d --build
-  ```
+- **CI/CD**: pushing to `main` runs `.github/workflows/deploy.yml`, which SCP-copies the
+  source to the VM and rebuilds — no manual step. The runner clones with `GITHUB_TOKEN`
+  and reaches the VM with the `DEPLOY_SSH_KEY` deploy key; **no GitHub credential is stored
+  on the VM**. Full key/secret model in README → "SSH keys, secrets & how deploys authenticate".
+- **`--force-recreate` is required** when restarting in prod (the workflow does this): the
+  `Caddyfile` is bind-mounted, not baked in, so a plain `up -d` leaves the running Caddy on
+  its old config and `Caddyfile` edits (e.g. security headers) silently never apply.
+- **Host-key fingerprint** in `deploy.yml` pins the VM's **ECDSA** key — update it only if
+  the VM is rebuilt (regenerate: `ssh-keyscan -t ecdsa <VM_IP> | ssh-keygen -lf -`).
+- Manual fallback (on the VM): `docker compose -f docker-compose.prod.yml up -d --build --force-recreate`.
 - Do not edit `Caddyfile` unless the domain changes — Caddy re-provisions TLS on any change.
 
 ## Running locally (without Docker)
