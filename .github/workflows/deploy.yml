@@ -7,6 +7,9 @@ on:
     # downtime-incurring) redeploy for Markdown edits.
     paths-ignore:
       - '**.md'
+  # Manual trigger: Actions tab → "Deploy to production" → "Run workflow"
+  # (or `gh workflow run "Deploy to production"`). Redeploys current main.
+  workflow_dispatch:
 
 # checkout clones this private repo on the runner using GITHUB_TOKEN, which
 # only needs read access. The VM never touches GitHub — the runner pushes the
