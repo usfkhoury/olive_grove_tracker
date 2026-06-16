@@ -1,0 +1,4 @@
+# Normalize all text files to LF in the repo and working tree.
+# Ends the CRLF/LF churn from editing on Windows / OneDrive. git auto-detects
+# binary files and leaves them untouched.
+* text=auto eol=lf
