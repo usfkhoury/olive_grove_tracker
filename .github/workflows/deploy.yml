@@ -59,6 +59,10 @@ jobs:
             # the one-off fetch below, never written to .git/config.
             git remote set-url origin "https://github.com/${GH_REPO}.git" 2>/dev/null \
               || git remote add origin "https://github.com/${GH_REPO}.git"
+            # TEMP diagnostic — prints only the length, never the value.
+            # ~40 = real token (so a rejection = permissions); 0 = not
+            # forwarded; 3 = arrived masked as "***". Remove once resolved.
+            echo "DEBUG: GH_TOKEN length=${#GH_TOKEN}"
             git fetch -q "$AUTH_URL" main
             # Hard reset to the fetched commit: overwrites tracked files, leaves
             # untracked/gitignored ones (.env, data/) intact.
