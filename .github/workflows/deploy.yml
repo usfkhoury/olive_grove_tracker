@@ -38,9 +38,10 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           # Pin the server's SSH host key (ED25519, verified out-of-band) so the
           # Action refuses to connect to anything but the real VM — no blind
-          # trust-on-first-use. If the server's host key is ever rotated, update
-          # this value.
-          fingerprint: 7dwt7QqJDWFjotg9H31ucWFv50bqj/Dt15yGfUrOrTc
+          # trust-on-first-use. The value is the full `SHA256:...` form that
+          # Go's ssh.FingerprintSHA256 produces (the prefix is required).
+          # Only changes if the VM's host key is rebuilt — see notes.
+          fingerprint: SHA256:7dwt7QqJDWFjotg9H31ucWFv50bqj/Dt15yGfUrOrTc
           envs: GH_TOKEN,GH_REPO,DEPLOY_PATH
           script: |
             set -e
