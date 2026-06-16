@@ -4,36 +4,79 @@ on:
   push:
     branches: [main]
 
+# The VM authenticates to GitHub with the workflow's built-in GITHUB_TOKEN,
+# which only needs read access to clone/pull this repo. Least privilege.
+permissions:
+  contents: read
+
+# Don't let two pushes deploy at once and race on the VM.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # Third-party actions are pinned to a full commit SHA (not a moving tag)
-      # so a compromised or retagged release can't run on the deploy runner,
-      # which holds the SSH key to the server. Bump deliberately when upgrading.
-      - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Copy source to server
-        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "."
-          target: ${{ secrets.DEPLOY_PATH }}
-          overwrite: true
-
-      - name: Build and restart
+      # No checkout or SCP: the VM pulls the code itself. The only GitHub
+      # credential that ever touches the server is the ephemeral GITHUB_TOKEN,
+      # injected for this single run and invalid the moment the job ends —
+      # nothing GitHub-related is stored on the VM.
+      #
+      # Third-party action pinned to a full commit SHA (not a moving tag) so a
+      # compromised/retagged release can't run on the runner that holds the
+      # SSH key. Bump deliberately when upgrading (# comment shows the version).
+      - name: Deploy via git pull
         uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Pin the server's SSH host key (ED25519, verified out-of-band) so the
+          # Action refuses to connect to anything but the real VM — no blind
+          # trust-on-first-use. If the server's host key is ever rotated, update
+          # this value.
+          fingerprint: 7dwt7QqJDWFjotg9H31ucWFv50bqj/Dt15yGfUrOrTc
+          envs: GH_TOKEN,GH_REPO,DEPLOY_PATH
           script: |
-            cd ${{ secrets.DEPLOY_PATH }}
+            set -e
+            AUTH_URL="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+            mkdir -p "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+            # First run: the directory may still hold the old SCP'd files and
+            # not be a git repo yet. `git init` is safe on a populated dir; the
+            # hard reset below adopts the tree to match origin/main.
+            if [ ! -d .git ]; then
+              git init -q
+            fi
+            # Keep the on-disk remote URL token-free — the token is used only in
+            # the one-off fetch below, never written to .git/config.
+            git remote set-url origin "https://github.com/${GH_REPO}.git" 2>/dev/null \
+              || git remote add origin "https://github.com/${GH_REPO}.git"
+            git fetch -q "$AUTH_URL" main
+            # Hard reset to the fetched commit: overwrites tracked files, leaves
+            # untracked/gitignored ones (.env, data/) intact.
+            git reset --hard FETCH_HEAD
             docker compose -f docker-compose.prod.yml build --no-cache
             # --force-recreate so Caddy re-reads its bind-mounted Caddyfile.
-            # Plain `up -d` leaves the running Caddy on its old config, so
-            # edits to Caddyfile (e.g. security headers) would never take effect.
+            # Plain `up -d` leaves the running Caddy on its old config.
             docker compose -f docker-compose.prod.yml up -d --force-recreate
+
+            # Post-deploy health check: fail the job loudly if the site doesn't
+            # come back. --resolve hits the local container directly (no hairpin
+            # NAT dependency) while keeping the real hostname for SNI + a valid
+            # TLS cert. Retry because --force-recreate briefly drops Caddy.
+            echo "Waiting for the site to respond..."
+            for i in $(seq 1 12); do
+              if curl -fsS -o /dev/null --resolve olives.usfkhoury.com:443:127.0.0.1 https://olives.usfkhoury.com/; then
+                echo "Health check passed."
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "Health check FAILED — site not responding 60s after deploy." >&2
+            exit 1
