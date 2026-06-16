@@ -36,12 +36,13 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # Pin the server's SSH host key (ED25519, verified out-of-band) so the
-          # Action refuses to connect to anything but the real VM — no blind
-          # trust-on-first-use. The value is the full `SHA256:...` form that
-          # Go's ssh.FingerprintSHA256 produces (the prefix is required).
-          # Only changes if the VM's host key is rebuilt — see notes.
-          fingerprint: SHA256:7dwt7QqJDWFjotg9H31ucWFv50bqj/Dt15yGfUrOrTc
+          # Pin the server's SSH host key so the Action refuses to connect to
+          # anything but the real VM — no blind trust-on-first-use. This is the
+          # ECDSA key: the Go ssh client appleboy uses prefers ECDSA over
+          # ED25519, so that's what the handshake negotiates and compares. The
+          # full `SHA256:...` form (with prefix) is what ssh.FingerprintSHA256
+          # produces. Only changes if the VM's host key is rebuilt — see notes.
+          fingerprint: SHA256:TWkhkM+EZ2h4YnuPY05Kh8wHQpvnoIoXeJx5WGezGsw
           envs: GH_TOKEN,GH_REPO,DEPLOY_PATH
           script: |
             set -e
