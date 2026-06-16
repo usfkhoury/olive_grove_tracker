@@ -3,10 +3,8 @@ from datetime import date
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import models, schemas, summaries
 from ..database import get_db
-from .harvests import season_summaries
-from .oil import _summary
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -21,7 +19,7 @@ def month_in_range(month: int, start: int, end: int) -> bool:
 def dashboard(db: Session = Depends(get_db)):
     today = date.today()
 
-    season_list = season_summaries(db)
+    season_list = summaries.season_summaries(db)
 
     tasks = db.query(models.SeasonalTask).order_by(models.SeasonalTask.start_month).all()
     active, upcoming = [], []
@@ -48,7 +46,7 @@ def dashboard(db: Session = Depends(get_db)):
         "today": today.isoformat(),
         "tree_count": tree_count,
         "seasons": season_list,
-        "oil": _summary(db),
+        "oil": summaries.oil_balance(db),
         "active_tasks": active,
         "upcoming_tasks": upcoming,
         "recent_activities": [

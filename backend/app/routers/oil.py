@@ -1,33 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import ledger, models, schemas, summaries
 from ..auth import require_admin
 from ..database import get_db
+from ._common import get_or_404
 
 router = APIRouter(prefix="/oil", tags=["oil"])
-
-TANAKE_KG = 15.0  # one 16L tanake holds ~15kg of oil
-OIL_DENSITY = TANAKE_KG / 16.0  # kg per liter
 
 # Valid input kinds are enforced by schemas.OilMovementIn ("press" excluded —
 # press movements only exist via the harvests router).
 OUT_KINDS = {"gift", "home", "sale"}
 
 
-def _summary(db: Session) -> dict:
-    balance = db.query(func.coalesce(func.sum(models.OilMovement.amount_kg), 0.0)).scalar()
-    return {
-        "balance_kg": round(balance, 2),
-        "balance_tanake": round(balance / TANAKE_KG, 2),
-        "balance_liters": round(balance / OIL_DENSITY, 1),
-    }
-
-
 @router.get("/summary")
 def oil_summary(db: Session = Depends(get_db)):
-    return _summary(db)
+    return summaries.oil_balance(db)
 
 
 @router.get("/movements", response_model=list[schemas.OilMovementOut])
@@ -54,10 +42,8 @@ def create_movement(data: schemas.OilMovementIn, db: Session = Depends(get_db), 
 
 @router.delete("/movements/{movement_id}", status_code=204)
 def delete_movement(movement_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
-    movement = db.get(models.OilMovement, movement_id)
-    if not movement:
-        raise HTTPException(404, "Movement not found")
-    if movement.kind == "press":
+    movement = get_or_404(db, models.OilMovement, movement_id, "Movement")
+    if ledger.is_press_movement(movement):
         raise HTTPException(400, "Press movements are managed via harvests")
     db.delete(movement)
     db.commit()

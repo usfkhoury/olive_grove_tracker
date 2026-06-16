@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..auth import require_admin
 from ..database import get_db
+from ._common import get_or_404
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 
@@ -46,9 +47,7 @@ def create_activity(data: schemas.ActivityIn, db: Session = Depends(get_db), _: 
 def update_activity(
     activity_id: int, data: schemas.ActivityIn, db: Session = Depends(get_db), _: None = Depends(require_admin)
 ):
-    activity = db.get(models.Activity, activity_id)
-    if not activity:
-        raise HTTPException(404, "Activity not found")
+    activity = get_or_404(db, models.Activity, activity_id, "Activity")
     activity.date = data.date
     activity.type = data.type
     activity.notes = data.notes
@@ -59,8 +58,6 @@ def update_activity(
 
 @router.delete("/{activity_id}", status_code=204)
 def delete_activity(activity_id: int, db: Session = Depends(get_db), _: None = Depends(require_admin)):
-    activity = db.get(models.Activity, activity_id)
-    if not activity:
-        raise HTTPException(404, "Activity not found")
+    activity = get_or_404(db, models.Activity, activity_id, "Activity")
     db.delete(activity)
     db.commit()

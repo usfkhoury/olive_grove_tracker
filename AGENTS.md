@@ -14,6 +14,8 @@ backend/app/
   migrations.py    init_db + MIGRATIONS list (PRAGMA user_version-based ALTERs)
   seed.py          One-time seed: 32 trees, 15 pressing sessions, 9 seasonal tasks
   auth.py          Owner auth: /api/auth login/logout/verify, signed-cookie session, require_admin dependency, per-IP login rate limit
+  ledger.py        Oil-ledger write rule: a pressing session owns one press movement (record_pressing/remove_pressing/is_press_movement). Used by harvests router + seed.
+  summaries.py     Read-side aggregation (FastAPI-free): season_summaries() + oil_balance(). Used by the harvests/oil routes and the dashboard.
   routers/
     dashboard.py   GET /api/dashboard — summary data for the home page
     trees.py       CRUD /api/trees
@@ -69,7 +71,7 @@ Caddyfile               Caddy config: reverse-proxies olives.usfkhoury.com → o
   ```powershell
   cd backend; pip install -r requirements.txt -r requirements-dev.txt; pytest
   ```
-- **Auth on writes**: GET endpoints are public; every POST/PUT/DELETE takes `_: None = Depends(require_admin)`. The session cookie is an `itsdangerous`-signed token (signing key = `OLIVE_ADMIN_TOKEN`), never the raw token — so rotating `OLIVE_ADMIN_TOKEN` invalidates all sessions. `OilMovementIn.kind` excludes `"press"`; the login is rate-limited per client IP (read from `X-Forwarded-For` behind Caddy). When adding a mutating route, add the `require_admin` dependency and a test in `test_auth.py`. **Planned:** replace the shared-token login with passwordless owner login (Google OIDC or passkeys) — full current-state + both-options handoff in `docs/auth.md`.
+- **Auth on writes**: GET endpoints are public; every POST/PUT/DELETE takes `_: None = Depends(require_admin)`. The session cookie is an `itsdangerous`-signed token (signing key = `OLIVE_SESSION_SECRET`), never a credential — so rotating `OLIVE_SESSION_SECRET` invalidates all sessions. Login is **Google sign-in (OIDC)**: `POST /api/auth/google` verifies the ID token via `google-auth` (audience = `GOOGLE_CLIENT_ID`) and accepts only `OLIVE_OWNER_EMAIL` (verified). `OilMovementIn.kind` excludes `"press"`; login is rate-limited per client IP (read from `X-Forwarded-For` behind Caddy). When adding a mutating route, add the `require_admin` dependency and a test in `test_auth.py`. Background + rationale in `docs/auth.md`.
 - **Schema changes need a migration**: `create_all` never alters existing tables. Any change to an existing model's columns MUST come with a matching SQL statement appended to `MIGRATIONS` in `backend/app/migrations.py` (applied in order, tracked via `PRAGMA user_version`). Brand-new tables need no entry. Never reorder or edit past entries.
 - **Dependencies are pinned** (`requirements.txt` exact versions, `frontend/package-lock.json` + `npm ci` in the Dockerfile) so a VM rebuild can't pull surprise upgrades. Bump versions deliberately and run the tests.
 - **`seed_if_empty`** checks for existing Tree or Harvest rows before inserting anything. Never drops or truncates tables.
@@ -92,7 +94,7 @@ Caddyfile               Caddy config: reverse-proxies olives.usfkhoury.com → o
 - All routes are prefixed `/api` (router prefix + app prefix).
 - Dates as ISO strings (`YYYY-MM-DD`).
 - Input validation lives in `schemas.py` (Pydantic `Field` constraints + `Literal` kinds/status), not in routers — invalid payloads get a 422. `OilMovementIn.kind` deliberately excludes `"press"`.
-- Per-season aggregation has a single source of truth: `season_summaries()` in `routers/harvests.py`, served at `GET /api/harvests/seasons` and embedded in `GET /api/dashboard`. The frontend never re-computes it.
+- Per-season aggregation has a single source of truth: `season_summaries()` in `summaries.py`, served at `GET /api/harvests/seasons` and embedded in `GET /api/dashboard`. The frontend never re-computes it. Oil balance (`oil_balance()`) lives in the same module, served at `GET /api/oil/summary` and also embedded in the dashboard.
 - `amount_kg` in `OilMovement` is always stored with the correct sign: gifts/home/sale = negative, press/adjustment = positive or negative depending on context.
 - OpenAPI docs available at `/docs` when running locally.
 
@@ -135,9 +137,23 @@ docker compose up -d --build --no-cache   # full clean rebuild
 
 Data in `./data/olive.db` survives all rebuilds.
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for usfkhoury/olive_grove_tracker, using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
 ## What NOT to do
 
 - Do not add expenses or cost tracking — the app intentionally omits them (oil is for home/gifts).
-- Do not bypass `_sync_press_movement` when writing harvests; always go through the router.
+- Do not write press movements by hand; always go through `ledger.record_pressing` / `ledger.remove_pressing` (the one home for the pressing↔ledger rule, used by both the harvests router and the seed).
 - Do not drop or truncate `oil_movements` to reset stock — use an `adjustment` movement instead.
 - Do not introduce yield percentages in the UI; ratio (`X:1`) is the only yield metric shown.

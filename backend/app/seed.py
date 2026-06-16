@@ -6,7 +6,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from . import models
+from . import ledger, models
 
 # (date, olives_kg, oil_kg, tanake) — imported from Notion.
 HARVEST_HISTORY = [
@@ -56,15 +56,9 @@ def seed_if_empty(db: Session) -> None:
         harvest = models.Harvest(date=d, olives_kg=olives, oil_kg=oil, tanake=tanake)
         db.add(harvest)
         db.flush()
-        db.add(
-            models.OilMovement(
-                date=d,
-                kind="press",
-                amount_kg=oil,
-                notes=f"Pressing of {olives:g}kg olives",
-                harvest_id=harvest.id,
-            )
-        )
+        # Mirror each pressing session into the oil ledger through the one rule
+        # that owns it, instead of re-creating the press movement by hand.
+        ledger.record_pressing(db, harvest)
 
     # Zero out pre-2025 oil (long since consumed/gifted) so the ledger starts
     # at the 2025 production. Add your own adjustment to set the real stock.
