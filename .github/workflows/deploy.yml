@@ -29,7 +29,6 @@ jobs:
       - name: Deploy via git pull
         uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         with:
@@ -43,10 +42,14 @@ jobs:
           # full `SHA256:...` form (with prefix) is what ssh.FingerprintSHA256
           # produces. Only changes if the VM's host key is rebuilt — see notes.
           fingerprint: SHA256:TWkhkM+EZ2h4YnuPY05Kh8wHQpvnoIoXeJx5WGezGsw
-          envs: GH_TOKEN,GH_REPO,DEPLOY_PATH
+          envs: GH_REPO,DEPLOY_PATH
           script: |
             set -e
-            AUTH_URL="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+            # The token is substituted into the script by GitHub itself (not
+            # routed through the ssh-action's env forwarding, which mangled it).
+            # GitHub masks it in logs; it stays ephemeral and is never written
+            # to disk (origin URL below is token-free).
+            AUTH_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GH_REPO}.git"
             mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
             # First run: the directory may still hold the old SCP'd files and
@@ -59,10 +62,6 @@ jobs:
             # the one-off fetch below, never written to .git/config.
             git remote set-url origin "https://github.com/${GH_REPO}.git" 2>/dev/null \
               || git remote add origin "https://github.com/${GH_REPO}.git"
-            # TEMP diagnostic — prints only the length, never the value.
-            # ~40 = real token (so a rejection = permissions); 0 = not
-            # forwarded; 3 = arrived masked as "***". Remove once resolved.
-            echo "DEBUG: GH_TOKEN length=${#GH_TOKEN}"
             git fetch -q "$AUTH_URL" main
             # Hard reset to the fetched commit: overwrites tracked files, leaves
             # untracked/gitignored ones (.env, data/) intact.
