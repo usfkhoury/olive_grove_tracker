@@ -5,6 +5,7 @@ services:
       args:
         # Baked into the frontend bundle at build time (see Dockerfile).
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+        VITE_HOME_URL: ${VITE_HOME_URL}
     container_name: olive-grove
     ports:
       - "8000:8000"

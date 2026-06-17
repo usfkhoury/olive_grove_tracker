@@ -6,6 +6,7 @@ services:
         # Baked into the frontend bundle at build time (see Dockerfile). Must be
         # set in the VM's .env alongside the runtime vars below.
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+        VITE_HOME_URL: ${VITE_HOME_URL}
     restart: unless-stopped
     volumes:
       - ./data:/data

@@ -23,6 +23,12 @@ const NAV = [
 // Theme-color the browser chrome should match each theme's top bar / background.
 const THEME_COLOR = { light: '#ffffff', dark: '#20231a' };
 
+// Where the top-bar back arrow points: the owner's landing page outside this app
+// (e.g. the apex domain when the tracker is hosted on a subdomain). Baked in at
+// build time; left unset in public forks / local dev, where we fall back to the
+// app's own root so the arrow still does something sensible.
+const HOME_URL = import.meta.env.VITE_HOME_URL || '/';
+
 function useTheme() {
   const [theme, setTheme] = useState(
     () => document.documentElement.dataset.theme || 'light',
@@ -45,7 +51,12 @@ export default function App() {
   return (
     <>
       <header className="topbar">
-        <span className="brand">🫒 Olive Grove</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <a className="back-home" href={HOME_URL} title="Back to home" aria-label="Back to home">
+            ←
+          </a>
+          <span className="brand">🫒 Olive Grove</span>
+        </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {isOwner ? (
             <button

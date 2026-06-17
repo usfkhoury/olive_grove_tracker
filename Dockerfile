@@ -9,6 +9,8 @@ COPY frontend/ ./
 # prefixed vars from the process env). Without it the sign-in button can't init.
 ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+ARG VITE_HOME_URL
+ENV VITE_HOME_URL=$VITE_HOME_URL
 RUN npm run build
 
 # Stage 2: Python backend serving the API + built frontend

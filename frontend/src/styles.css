@@ -316,6 +316,19 @@ header.topbar .brand {
   align-items: center;
   gap: 6px;
 }
+.back-home {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--olive-dark);
+  background: var(--olive-pale);
+  border-radius: 999px;
+  text-decoration: none;
+}
 .theme-toggle {
   background: var(--olive-pale);
   color: var(--olive-dark);

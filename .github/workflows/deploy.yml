@@ -57,10 +57,14 @@ jobs:
         # docker compose interpolates ${VAR} at build + run time. Nothing is
         # hand-maintained in a .env on the VM. VITE_GOOGLE_CLIENT_ID is consumed
         # by the frontend build arg; the rest are the backend's runtime env.
+        # VITE_HOME_URL is an optional frontend build arg (the top-bar back link);
+        # if the secret is unset the bundle falls back to the app root, so it is
+        # NOT in the required-vars check below.
         env:
           OLIVE_SESSION_SECRET: ${{ secrets.OLIVE_SESSION_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_HOME_URL: ${{ secrets.VITE_HOME_URL }}
           OLIVE_OWNER_EMAIL: ${{ secrets.OLIVE_OWNER_EMAIL }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -68,7 +72,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           fingerprint: SHA256:TWkhkM+EZ2h4YnuPY05Kh8wHQpvnoIoXeJx5WGezGsw
           # Forward the secrets above into the remote script's environment.
-          envs: OLIVE_SESSION_SECRET,GOOGLE_CLIENT_ID,VITE_GOOGLE_CLIENT_ID,OLIVE_OWNER_EMAIL
+          envs: OLIVE_SESSION_SECRET,GOOGLE_CLIENT_ID,VITE_GOOGLE_CLIENT_ID,VITE_HOME_URL,OLIVE_OWNER_EMAIL
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
