@@ -3,6 +3,8 @@
 A single-owner web app for tracking olive trees, harvests, and oil production.
 The public site is read-only; only the owner can change data.
 
+This is the **single glossary** for the project — domain language and local terms.
+
 ## Language
 
 **Owner**:
@@ -25,7 +27,8 @@ _Avoid_: Token, login token.
 **Break-glass recovery**:
 Regaining write access when Owner login is unavailable, by minting a Session cookie
 by hand on the VM (gated by SSH access), rather than via any fallback login. See
-[ADR-0001](./docs/adr/0001-google-oidc-no-breakglass-token.md).
+[ADR-0001](./docs/adr/0001-google-oidc-no-breakglass-token.md); the runbook is in
+[docs/deploy.md](./docs/deploy.md).
 _Avoid_: Emergency token, admin token, fallback login.
 
 ## Olives & oil
@@ -45,3 +48,16 @@ The single Oil ledger entry that mirrors a Pressing session — it always equals
 session's oil and is owned by it: created, updated, and removed only through the
 session, never edited directly.
 _Avoid_: Press entry, harvest movement.
+
+## Local terms
+
+The Lebanese/Arabic vocabulary the grove is run in. The UI and code use these
+terms; keep to them rather than synonyms.
+
+| Term | Meaning |
+|---|---|
+| tanake (singular: tanakeh) | 16L oil tin ≈ 15kg oil |
+| kis | sack ≈ 25kg olives |
+| 3aser | olive press / mill |
+| jefet | pomace left after pressing — dried for firewood |
+| ratio | kg olives / kg oil (lower = better pressing; 2024 was 3.8:1, best on record) |
