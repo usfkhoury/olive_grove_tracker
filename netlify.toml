@@ -7,7 +7,6 @@
   directory    = "netlify/functions"
   node_bundler = "esbuild"
 
-# /api/* -> single Hono function; SPA fallback for everything else.
 [[redirects]]
   from   = "/api/*"
   to     = "/.netlify/functions/api/:splat"

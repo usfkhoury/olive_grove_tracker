@@ -1,15 +1,10 @@
 {
   "name": "olive-grove-functions",
   "private": true,
-  "type": "module",
+  "description": "Netlify Function for olives.usfkhoury.com (Notion-backed).",
+  "license": "MIT",
   "dependencies": {
-    "hono": "^4.6.14",
-    "jsonwebtoken": "^9.0.2"
-  },
-  "devDependencies": {
-    "@netlify/functions": "^2.8.2",
-    "@types/jsonwebtoken": "^9.0.7",
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
+    "@notionhq/client": "^2.2.15",
+    "google-auth-library": "^9.14.1"
   }
 }
