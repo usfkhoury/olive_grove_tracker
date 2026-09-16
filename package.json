@@ -1,0 +1,11 @@
+{
+  "name": "olive_grove_tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Olive grove tracker (olives.usfkhoury.com) — React PWA + Notion-backed Netlify Function.",
+  "license": "MIT",
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "google-auth-library": "^9.14.1"
+  }
+}

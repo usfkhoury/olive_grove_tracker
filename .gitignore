@@ -19,3 +19,7 @@ __pycache__/
 
 # Netlify CLI local state
 .netlify/
+
+# Root node_modules (function deps installed by Netlify)
+/node_modules/
+package-lock.json
