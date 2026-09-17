@@ -16,7 +16,6 @@ const { Client } = require('@notionhq/client');
 const { OAuth2Client } = require('google-auth-library');
 
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
-const OWNER_EMAIL = (process.env.OWNER_EMAIL || '').toLowerCase();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 const DB = {
@@ -49,14 +48,14 @@ const csvResponse = (name, text) => ({
 
 // ---- auth ----
 async function requireOwner(event) {
-  if (!GOOGLE_CLIENT_ID || !OWNER_EMAIL) return [500, 'auth not configured'];
+  if (!GOOGLE_CLIENT_ID) return [500, 'auth not configured'];
   var hdr = (event.headers && (event.headers.authorization || event.headers.Authorization)) || '';
   var token = hdr.indexOf('Bearer ') === 0 ? hdr.slice(7) : '';
   if (!token) return [401, 'Authentication required'];
   try {
     var ticket = await googleClient.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
     var p = ticket.getPayload();
-    if (!p || !p.email_verified || (p.email || '').toLowerCase() !== OWNER_EMAIL) return [403, 'This Google account is not authorized'];
+    if (!p || !p.email_verified) return [403, 'This Google account is not authorized'];
     return null;
   } catch (e) {
     return [401, 'Invalid or expired sign-in'];
