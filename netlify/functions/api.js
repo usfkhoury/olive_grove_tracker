@@ -8,15 +8,15 @@
  * Original integer ids are preserved via a `[sqlite:<table>#<n>]` marker
  * embedded at the end of each page's Notes rich_text.
  *
- * Env: NOTION_TOKEN|NOTION_API_KEY, OWNER_EMAIL|OLIVE_OWNER_EMAIL,
- *      GOOGLE_CLIENT_ID, NOTION_DB_TREES, NOTION_DB_ACTIVITIES,
+ * Env: NOTION_TOKEN, OWNER_EMAIL, GOOGLE_CLIENT_ID,
+ *      NOTION_DB_TREES, NOTION_DB_ACTIVITIES,
  *      NOTION_DB_HARVESTS, NOTION_DB_OIL, NOTION_DB_TASKS.
  */
 const { Client } = require('@notionhq/client');
 const { OAuth2Client } = require('google-auth-library');
 
-const NOTION_TOKEN = process.env.NOTION_TOKEN || process.env.NOTION_API_KEY;
-const OWNER_EMAIL = (process.env.OWNER_EMAIL || process.env.OLIVE_OWNER_EMAIL || '').toLowerCase();
+const NOTION_TOKEN = process.env.NOTION_TOKEN;
+const OWNER_EMAIL = (process.env.OWNER_EMAIL || '').toLowerCase();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 const DB = {
