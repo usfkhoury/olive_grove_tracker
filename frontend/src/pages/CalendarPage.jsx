@@ -126,8 +126,12 @@ export default function CalendarPage() {
                   <div className="title">{t.name}</div>
                   <div className="sub">
                     {MONTHS[t.start_month - 1]}–{MONTHS[t.end_month - 1]}
-                    {t.notes ? ` — ${t.notes}` : ''}
                   </div>
+                  {t.notes && (
+                    <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>
+                      {t.notes}
+                    </div>
+                  )}
                 </div>
                 {isOwner && t.start_month === month && (
                   <div style={{ whiteSpace: 'nowrap' }}>
