@@ -3,10 +3,11 @@
  *
  * Ports the FastAPI backend to Notion (API 2025-09-03) via @notionhq/client.
  * Reads (GET) are public; writes (POST/PUT/DELETE) require a Google ID token
- * sent as `Authorization: Bearer <token>` matching OWNER_EMAIL.
+ * sent as `Authorization: Bearer ***` matching OWNER_EMAIL.
  *
- * Original integer ids are preserved via a `[sqlite:<table>#<n>]` marker
- * embedded at the end of each page's Notes rich_text.
+ * Row identity is the Notion page id (uuid). Legacy `[sqlite:<table>#<n>]`
+ * markers left over in Notes rich_text are stripped on read so the UI shows
+ * clean text; new writes never emit a marker.
  *
  * Env: NOTION_TOKEN, OWNER_EMAIL, GOOGLE_CLIENT_ID,
  *      NOTION_DB_TREES, NOTION_DB_ACTIVITIES,
@@ -71,18 +72,10 @@ const readTitle = (p) => (p && p.title && p.title.length ? p.title.map((t) => t.
 const readRichRaw = (p) => (p && p.rich_text && p.rich_text.length ? p.rich_text.map((t) => t.plain_text).join('') : '');
 const readRelIds = (p) => (p && p.relation ? p.relation.map((r) => r.id) : []);
 
-const MARKER_RE = /\[sqlite:(\w+)#(\d+)\]/;
-function parseMarker(rawText) {
-  var m = (rawText || '').match(MARKER_RE);
-  return m ? { table: m[1], id: parseInt(m[2], 10) } : null;
-}
+// Legacy: strip any trailing `[sqlite:<table>#<n>]` marker (with the blank line
+// migrate.py inserted before it) so old rows still display clean notes.
 function notesPlain(rawText) {
   return (rawText || '').replace(/\n*\[sqlite:\w+#\d+\]\s*$/, '').replace(/\s+$/, '');
-}
-function richWithMarker(notes, table, id) {
-  var marker = '[sqlite:' + table + '#' + id + ']';
-  var combined = notes ? (notes + '\n\n' + marker) : marker;
-  return [{ type: 'text', text: { content: combined.slice(0, 1900) } }];
 }
 function richText(t) {
   return t ? [{ type: 'text', text: { content: String(t).slice(0, 1900) } }] : [];
@@ -104,55 +97,48 @@ async function queryAll(dbId, filter, sorts) {
   return out;
 }
 
-// ---- row parsers ----
+// ---- row parsers (id = Notion page uuid) ----
 function treeOut(page) {
   var p = page.properties || {};
-  var m = parseMarker(readRichRaw(p.Notes));
   return {
-    id: m ? m.id : 0,
+    id: page.id,
     label: readTitle(p.Label),
     row: readNum(p.Row) || 0,
     col: readNum(p.Col) || 0,
     variety: readSelect(p.Variety) || '',
     planted_year: readNum(p['Planted year']),
     status: readSelect(p.Status) || 'active',
-    notes: notesPlain(readRichRaw(p.Notes)),
-    _pageId: page.id
+    notes: notesPlain(readRichRaw(p.Notes))
   };
 }
 function harvestOut(page) {
   var p = page.properties || {};
-  var m = parseMarker(readRichRaw(p.Notes));
   var olives = readNum(p['Olives kg']) || 0;
   var oil = readNum(p['Oil kg']) || 0;
   return {
-    id: m ? m.id : 0,
+    id: page.id,
     date: readDate(p.Date) || '',
     olives_kg: olives,
     oil_kg: oil,
     tanake: readNum(p.Tanake),
     notes: notesPlain(readRichRaw(p.Notes)),
-    yield_pct: olives > 0 ? Math.round((oil / olives) * 1000) / 10 : null,
-    _pageId: page.id
+    yield_pct: olives > 0 ? Math.round((oil / olives) * 1000) / 10 : null
   };
 }
 function oilOut(page) {
   var p = page.properties || {};
-  var m = parseMarker(readRichRaw(p.Notes));
   var rel = readRelIds(p.Harvest);
   return {
-    id: m ? m.id : 0,
+    id: page.id,
     date: readDate(p.Date) || '',
     kind: readSelect(p.Kind) || '',
     amount_kg: readNum(p['Amount kg']) || 0,
     notes: notesPlain(readRichRaw(p.Notes)),
-    _pageId: page.id,
-    _harvestPageId: rel[0] || null
+    harvest_id: rel[0] || null
   };
 }
 function activityOut(page, treeLookup) {
   var p = page.properties || {};
-  var m = parseMarker(readRichRaw(p.Notes));
   var rel = readRelIds(p.Trees);
   var trees = [];
   for (var i = 0; i < rel.length; i++) {
@@ -160,29 +146,26 @@ function activityOut(page, treeLookup) {
     if (t) trees.push(t);
   }
   return {
-    id: m ? m.id : 0,
+    id: page.id,
     date: readDate(p.Date) || '',
     type: readSelect(p.Type) || '',
     notes: notesPlain(readRichRaw(p.Notes)),
-    trees: trees,
-    _pageId: page.id
+    trees: trees
   };
 }
 function taskOut(page) {
   var p = page.properties || {};
-  var m = parseMarker(readRichRaw(p.Notes));
   return {
-    id: m ? m.id : 0,
+    id: page.id,
     name: readTitle(p.Name),
     start_month: readNum(p['Start month']) || 1,
     end_month: readNum(p['End month']) || 1,
-    notes: notesPlain(readRichRaw(p.Notes)),
-    _pageId: page.id
+    notes: notesPlain(readRichRaw(p.Notes))
   };
 }
 
-// ---- property builders ----
-function treeProps(data, id) {
+// ---- property builders (no marker) ----
+function treeProps(data) {
   return {
     Label: { title: richText(data.label) },
     Row: { number: num(data.row) || 0 },
@@ -190,45 +173,45 @@ function treeProps(data, id) {
     Variety: data.variety ? { select: { name: data.variety } } : { select: null },
     'Planted year': { number: data.planted_year == null ? null : Number(data.planted_year) },
     Status: { select: { name: data.status || 'active' } },
-    Notes: { rich_text: richWithMarker(data.notes || '', 'trees', id) }
+    Notes: { rich_text: richText(data.notes || '') }
   };
 }
-function harvestProps(data, id) {
+function harvestProps(data) {
   return {
     Name: { title: richText('Harvest — ' + data.date) },
     Date: { date: { start: data.date } },
     'Olives kg': { number: num(data.olives_kg) },
     'Oil kg': { number: num(data.oil_kg) },
     Tanake: { number: data.tanake == null ? null : Number(data.tanake) },
-    Notes: { rich_text: richWithMarker(data.notes || '', 'harvests', id) }
+    Notes: { rich_text: richText(data.notes || '') }
   };
 }
-function oilProps(data, id, harvestPageId) {
+function oilProps(data, harvestPageId) {
   var p = {
     Name: { title: richText(data.kind + ' — ' + data.date) },
     Date: { date: { start: data.date } },
     Kind: { select: { name: data.kind } },
     'Amount kg': { number: num(data.amount_kg) },
-    Notes: { rich_text: richWithMarker(data.notes || '', 'oil_movements', id) }
+    Notes: { rich_text: richText(data.notes || '') }
   };
   p.Harvest = harvestPageId ? { relation: [{ id: harvestPageId }] } : { relation: [] };
   return p;
 }
-function activityProps(data, id, treePageIds) {
+function activityProps(data, treePageIds) {
   return {
     Name: { title: richText(data.type + ' — ' + data.date) },
     Date: { date: { start: data.date } },
     Type: { select: { name: data.type } },
     Trees: { relation: (treePageIds || []).map((pid) => ({ id: pid })) },
-    Notes: { rich_text: richWithMarker(data.notes || '', 'activities', id) }
+    Notes: { rich_text: richText(data.notes || '') }
   };
 }
-function taskProps(data, id) {
+function taskProps(data) {
   return {
     Name: { title: richText(data.name) },
     'Start month': { number: Number(data.start_month) },
     'End month': { number: Number(data.end_month) },
-    Notes: { rich_text: richWithMarker(data.notes || '', 'seasonal_tasks', id) }
+    Notes: { rich_text: richText(data.notes || '') }
   };
 }
 
@@ -240,18 +223,18 @@ async function fetchAllTrees() {
 async function fetchAllHarvests() {
   var pages = await queryAll(DB.harvests);
   var out = pages.map(harvestOut);
-  out.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  out.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   return out;
 }
 async function fetchAllOil() {
   var pages = await queryAll(DB.oil);
   var out = pages.map(oilOut);
-  out.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  out.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   return out;
 }
 async function fetchAllTasks() {
   var pages = await queryAll(DB.tasks);
-  return pages.map(taskOut).sort((a, b) => a.start_month - b.start_month || a.id - b.id);
+  return pages.map(taskOut).sort((a, b) => a.start_month - b.start_month || a.id.localeCompare(b.id));
 }
 async function fetchAllActivities() {
   var treePages = await queryAll(DB.trees);
@@ -259,41 +242,17 @@ async function fetchAllActivities() {
   var lookup = new Map();
   for (var i = 0; i < treePages.length; i++) {
     var tp = treePages[i];
-    var mk = parseMarker(readRichRaw(tp.properties && tp.properties.Notes));
-    if (mk) lookup.set(tp.id, { id: mk.id, label: readTitle(tp.properties && tp.properties.Label) });
+    lookup.set(tp.id, { id: tp.id, label: readTitle(tp.properties && tp.properties.Label) });
   }
   var out = actPages.map((p) => activityOut(p, lookup));
-  out.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  out.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   return out;
 }
 
-// ---- int-id -> page-id ----
-async function pageIdForInt(dbId, table, intId) {
-  var pages = await queryAll(dbId);
-  for (var i = 0; i < pages.length; i++) {
-    var mk = parseMarker(readRichRaw(pages[i].properties && pages[i].properties.Notes));
-    if (mk && mk.table === table && mk.id === intId) return pages[i].id;
-  }
-  return null;
-}
-async function nextId(dbId, table) {
-  var pages = await queryAll(dbId);
-  var max = 0;
-  for (var i = 0; i < pages.length; i++) {
-    var mk = parseMarker(readRichRaw(pages[i].properties && pages[i].properties.Notes));
-    if (mk && mk.table === table && mk.id > max) max = mk.id;
-  }
-  return max + 1;
-}
-async function harvestPageIdToIntMap() {
-  var pages = await queryAll(DB.harvests);
-  var m = new Map();
-  for (var i = 0; i < pages.length; i++) {
-    var mk = parseMarker(readRichRaw(pages[i].properties && pages[i].properties.Notes));
-    if (mk) m.set(pages[i].id, mk.id);
-  }
-  return m;
-}
+// ---- id validation ----
+// Notion page ids are 32 hex chars, optionally hyphen-separated as 8-4-4-4-12.
+const PAGE_ID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+function isPageId(s) { return typeof s === 'string' && PAGE_ID_RE.test(s); }
 
 // ---- summaries ----
 const TANAKE_KG = 15.0;
@@ -350,12 +309,6 @@ function toCsv(header, rows) {
   return out.join('\n') + '\n';
 }
 
-// ---- strip _internal ----
-function strip(o) {
-  var out = {};
-  for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k) && k[0] !== '_') out[k] = o[k];
-  return out;
-}
 function formatNum(n) {
   return parseFloat(Number(n).toPrecision(6)).toString();
 }
@@ -374,7 +327,6 @@ async function findPressForHarvest(harvestPageId) {
 // ---- routing ----
 function normalizePath(event) {
   var p = event.path || '';
-  // Strip Netlify function prefix if present.
   p = p.replace(/^\/\.netlify\/functions\/api/, '');
   p = p.replace(/^\/api/, '');
   if (!p.startsWith('/')) p = '/' + p;
@@ -386,40 +338,42 @@ function parseBody(event) {
   try { return JSON.parse(event.body); } catch (e) { return null; }
 }
 
+// ---- verify a page belongs to a given DB (unused — retained via retrieve() error) ----
+
 async function handleTrees(method, parts, event) {
   if (parts.length === 1) {
-    if (method === 'GET') return json(200, (await fetchAllTrees()).map(strip));
+    if (method === 'GET') return json(200, await fetchAllTrees());
     if (method === 'POST') {
       var d = await requireOwner(event); if (d) return json(d[0], { detail: d[1] });
       var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
-      var id = await nextId(DB.trees, 'trees');
-      var page = await notion.pages.create({ parent: { database_id: DB.trees }, properties: treeProps(body, id) });
-      return json(201, strip(treeOut(page)));
+      var page = await notion.pages.create({ parent: { database_id: DB.trees }, properties: treeProps(body) });
+      return json(201, treeOut(page));
     }
     return json(405, { detail: 'method not allowed' });
   }
-  var intId = parseInt(parts[1], 10);
-  if (!Number.isInteger(intId)) return json(400, { detail: 'Bad id' });
+  var pid = parts[1];
+  if (!isPageId(pid)) return json(400, { detail: 'Bad id' });
   if (method === 'GET') {
-    var rows = await fetchAllTrees();
-    var t = rows.find((r) => r.id === intId);
-    if (!t) return json(404, { detail: 'Tree not found' });
-    return json(200, strip(t));
+    try {
+      var page = await notion.pages.retrieve({ page_id: pid });
+      if (page.archived) return json(404, { detail: 'Tree not found' });
+      return json(200, treeOut(page));
+    } catch (e) { return json(404, { detail: 'Tree not found' }); }
   }
   if (method === 'PUT') {
     var d1 = await requireOwner(event); if (d1) return json(d1[0], { detail: d1[1] });
-    var pid = await pageIdForInt(DB.trees, 'trees', intId);
-    if (!pid) return json(404, { detail: 'Tree not found' });
     var b1 = parseBody(event); if (b1 == null) return json(400, { detail: 'Invalid body' });
-    var pg = await notion.pages.update({ page_id: pid, properties: treeProps(b1, intId) });
-    return json(200, strip(treeOut(pg)));
+    try {
+      var pg = await notion.pages.update({ page_id: pid, properties: treeProps(b1) });
+      return json(200, treeOut(pg));
+    } catch (e) { return json(404, { detail: 'Tree not found' }); }
   }
   if (method === 'DELETE') {
     var d2 = await requireOwner(event); if (d2) return json(d2[0], { detail: d2[1] });
-    var pid2 = await pageIdForInt(DB.trees, 'trees', intId);
-    if (!pid2) return json(404, { detail: 'Tree not found' });
-    await notion.pages.update({ page_id: pid2, archived: true });
-    return noContent();
+    try {
+      await notion.pages.update({ page_id: pid, archived: true });
+      return noContent();
+    } catch (e) { return json(404, { detail: 'Tree not found' }); }
   }
   return json(405, { detail: 'method not allowed' });
 }
@@ -430,72 +384,63 @@ async function handleActivities(method, parts, event) {
       var q = event.queryStringParameters || {};
       var rows = await fetchAllActivities();
       if (q.tree_id) {
-        var tid = parseInt(q.tree_id, 10);
-        rows = rows.filter((a) => a.trees.some((t) => t.id === tid));
+        rows = rows.filter((a) => a.trees.some((t) => t.id === q.tree_id));
       }
       var limit = q.limit ? parseInt(q.limit, 10) : 200;
-      return json(200, rows.slice(0, limit).map(strip));
+      return json(200, rows.slice(0, limit));
     }
     if (method === 'POST') {
       var d = await requireOwner(event); if (d) return json(d[0], { detail: d[1] });
       var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
       var treeIds = body.tree_ids || [];
-      var treePageIds = [];
       for (var i = 0; i < treeIds.length; i++) {
-        var pid = await pageIdForInt(DB.trees, 'trees', treeIds[i]);
-        if (!pid) return json(400, { detail: 'One or more tree ids do not exist' });
-        treePageIds.push(pid);
+        if (!isPageId(treeIds[i])) return json(400, { detail: 'One or more tree ids are invalid' });
       }
-      var id = await nextId(DB.activities, 'activities');
-      var page = await notion.pages.create({ parent: { database_id: DB.activities }, properties: activityProps(body, id, treePageIds) });
+      var page = await notion.pages.create({ parent: { database_id: DB.activities }, properties: activityProps(body, treeIds) });
+      // Rebuild with tree labels for the response
       var rows2 = await fetchAllActivities();
-      var made = rows2.find((r) => r._pageId === page.id);
-      return json(201, strip(made || activityOut(page, new Map())));
+      var made = rows2.find((r) => r.id === page.id);
+      return json(201, made || activityOut(page, new Map()));
     }
     return json(405, { detail: 'method not allowed' });
   }
-  var intId = parseInt(parts[1], 10);
-  if (!Number.isInteger(intId)) return json(400, { detail: 'Bad id' });
+  var pid = parts[1];
+  if (!isPageId(pid)) return json(400, { detail: 'Bad id' });
   if (method === 'PUT') {
     var d1 = await requireOwner(event); if (d1) return json(d1[0], { detail: d1[1] });
-    var pidx = await pageIdForInt(DB.activities, 'activities', intId);
-    if (!pidx) return json(404, { detail: 'Activity not found' });
     var b1 = parseBody(event); if (b1 == null) return json(400, { detail: 'Invalid body' });
-    var tpids = [];
     var tids = b1.tree_ids || [];
     for (var j = 0; j < tids.length; j++) {
-      var p2 = await pageIdForInt(DB.trees, 'trees', tids[j]);
-      if (!p2) return json(400, { detail: 'One or more tree ids do not exist' });
-      tpids.push(p2);
+      if (!isPageId(tids[j])) return json(400, { detail: 'One or more tree ids are invalid' });
     }
-    var upd = await notion.pages.update({ page_id: pidx, properties: activityProps(b1, intId, tpids) });
-    var rows3 = await fetchAllActivities();
-    var u = rows3.find((r) => r._pageId === upd.id);
-    return json(200, strip(u || activityOut(upd, new Map())));
+    try {
+      var upd = await notion.pages.update({ page_id: pid, properties: activityProps(b1, tids) });
+      var rows3 = await fetchAllActivities();
+      var u = rows3.find((r) => r.id === upd.id);
+      return json(200, u || activityOut(upd, new Map()));
+    } catch (e) { return json(404, { detail: 'Activity not found' }); }
   }
   if (method === 'DELETE') {
     var d2 = await requireOwner(event); if (d2) return json(d2[0], { detail: d2[1] });
-    var pid3 = await pageIdForInt(DB.activities, 'activities', intId);
-    if (!pid3) return json(404, { detail: 'Activity not found' });
-    await notion.pages.update({ page_id: pid3, archived: true });
-    return noContent();
+    try {
+      await notion.pages.update({ page_id: pid, archived: true });
+      return noContent();
+    } catch (e) { return json(404, { detail: 'Activity not found' }); }
   }
   return json(405, { detail: 'method not allowed' });
 }
 
 async function handleHarvests(method, parts, event) {
   if (parts.length === 1) {
-    if (method === 'GET') return json(200, (await fetchAllHarvests()).map(strip));
+    if (method === 'GET') return json(200, await fetchAllHarvests());
     if (method === 'POST') {
       var d = await requireOwner(event); if (d) return json(d[0], { detail: d[1] });
       var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
-      var id = await nextId(DB.harvests, 'harvests');
-      var page = await notion.pages.create({ parent: { database_id: DB.harvests }, properties: harvestProps(body, id) });
-      var oilId = await nextId(DB.oil, 'oil_movements');
+      var page = await notion.pages.create({ parent: { database_id: DB.harvests }, properties: harvestProps(body) });
       var pressData = { date: body.date, kind: 'press', amount_kg: body.oil_kg,
         notes: 'Pressing of ' + formatNum(body.olives_kg) + 'kg olives' };
-      await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(pressData, oilId, page.id) });
-      return json(201, strip(harvestOut(page)));
+      await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(pressData, page.id) });
+      return json(201, harvestOut(page));
     }
     return json(405, { detail: 'method not allowed' });
   }
@@ -503,33 +448,32 @@ async function handleHarvests(method, parts, event) {
     if (method !== 'GET') return json(405, { detail: 'method not allowed' });
     return json(200, seasonSummaries(await fetchAllHarvests()));
   }
-  var intId = parseInt(parts[1], 10);
-  if (!Number.isInteger(intId)) return json(400, { detail: 'Bad id' });
+  var pid = parts[1];
+  if (!isPageId(pid)) return json(400, { detail: 'Bad id' });
   if (method === 'PUT') {
     var d1 = await requireOwner(event); if (d1) return json(d1[0], { detail: d1[1] });
-    var pid = await pageIdForInt(DB.harvests, 'harvests', intId);
-    if (!pid) return json(404, { detail: 'Harvest not found' });
     var b1 = parseBody(event); if (b1 == null) return json(400, { detail: 'Invalid body' });
-    var pg = await notion.pages.update({ page_id: pid, properties: harvestProps(b1, intId) });
-    var existing = await findPressForHarvest(pid);
-    var pd = { date: b1.date, kind: 'press', amount_kg: b1.oil_kg,
-      notes: 'Pressing of ' + formatNum(b1.olives_kg) + 'kg olives' };
-    if (existing) {
-      await notion.pages.update({ page_id: existing._pageId, properties: oilProps(pd, existing.id, pid) });
-    } else {
-      var nid = await nextId(DB.oil, 'oil_movements');
-      await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(pd, nid, pid) });
-    }
-    return json(200, strip(harvestOut(pg)));
+    try {
+      var pg = await notion.pages.update({ page_id: pid, properties: harvestProps(b1) });
+      var existing = await findPressForHarvest(pid);
+      var pd = { date: b1.date, kind: 'press', amount_kg: b1.oil_kg,
+        notes: 'Pressing of ' + formatNum(b1.olives_kg) + 'kg olives' };
+      if (existing) {
+        await notion.pages.update({ page_id: existing.id, properties: oilProps(pd, pid) });
+      } else {
+        await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(pd, pid) });
+      }
+      return json(200, harvestOut(pg));
+    } catch (e) { return json(404, { detail: 'Harvest not found' }); }
   }
   if (method === 'DELETE') {
     var d2 = await requireOwner(event); if (d2) return json(d2[0], { detail: d2[1] });
-    var pid2 = await pageIdForInt(DB.harvests, 'harvests', intId);
-    if (!pid2) return json(404, { detail: 'Harvest not found' });
-    var ex = await findPressForHarvest(pid2);
-    if (ex) await notion.pages.update({ page_id: ex._pageId, archived: true });
-    await notion.pages.update({ page_id: pid2, archived: true });
-    return noContent();
+    try {
+      var ex = await findPressForHarvest(pid);
+      if (ex) await notion.pages.update({ page_id: ex.id, archived: true });
+      await notion.pages.update({ page_id: pid, archived: true });
+      return noContent();
+    } catch (e) { return json(404, { detail: 'Harvest not found' }); }
   }
   return json(405, { detail: 'method not allowed' });
 }
@@ -544,41 +488,30 @@ async function handleOil(method, parts, event) {
   }
   if (parts[1] === 'movements') {
     if (parts.length === 2) {
-      if (method === 'GET') {
-        var rows = await fetchAllOil();
-        var m = await harvestPageIdToIntMap();
-        return json(200, rows.map((r) => {
-          var o = strip(r);
-          o.harvest_id = r._harvestPageId ? (m.get(r._harvestPageId) || null) : null;
-          return o;
-        }));
-      }
+      if (method === 'GET') return json(200, await fetchAllOil());
       if (method === 'POST') {
         var d = await requireOwner(event); if (d) return json(d[0], { detail: d[1] });
         var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
         if (!VALID_KINDS[body.kind]) return json(422, { detail: 'Invalid kind' });
         var amount = Number(body.amount_kg);
         if (OUT_KINDS[body.kind]) amount = -Math.abs(amount);
-        var id = await nextId(DB.oil, 'oil_movements');
         var payload = { date: body.date, kind: body.kind, amount_kg: amount, notes: body.notes || '' };
-        var page = await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(payload, id, null) });
-        var o = strip(oilOut(page));
-        o.harvest_id = null;
-        return json(201, o);
+        var page = await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(payload, null) });
+        return json(201, oilOut(page));
       }
       return json(405, { detail: 'method not allowed' });
     }
-    var intId = parseInt(parts[2], 10);
-    if (!Number.isInteger(intId)) return json(400, { detail: 'Bad id' });
+    var pid = parts[2];
+    if (!isPageId(pid)) return json(400, { detail: 'Bad id' });
     if (method === 'DELETE') {
       var d1 = await requireOwner(event); if (d1) return json(d1[0], { detail: d1[1] });
-      var pid = await pageIdForInt(DB.oil, 'oil_movements', intId);
-      if (!pid) return json(404, { detail: 'Movement not found' });
-      var rows2 = await fetchAllOil();
-      var mv = rows2.find((r) => r._pageId === pid);
-      if (mv && mv.kind === 'press') return json(400, { detail: 'Press movements are managed via harvests' });
-      await notion.pages.update({ page_id: pid, archived: true });
-      return noContent();
+      try {
+        var page = await notion.pages.retrieve({ page_id: pid });
+        var kind = readSelect((page.properties || {}).Kind);
+        if (kind === 'press') return json(400, { detail: 'Press movements are managed via harvests' });
+        await notion.pages.update({ page_id: pid, archived: true });
+        return noContent();
+      } catch (e) { return json(404, { detail: 'Movement not found' }); }
     }
   }
   return json(404, { detail: 'not found' });
@@ -586,32 +519,31 @@ async function handleOil(method, parts, event) {
 
 async function handleTasks(method, parts, event) {
   if (parts.length === 1) {
-    if (method === 'GET') return json(200, (await fetchAllTasks()).map(strip));
+    if (method === 'GET') return json(200, await fetchAllTasks());
     if (method === 'POST') {
       var d = await requireOwner(event); if (d) return json(d[0], { detail: d[1] });
       var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
-      var id = await nextId(DB.tasks, 'seasonal_tasks');
-      var page = await notion.pages.create({ parent: { database_id: DB.tasks }, properties: taskProps(body, id) });
-      return json(201, strip(taskOut(page)));
+      var page = await notion.pages.create({ parent: { database_id: DB.tasks }, properties: taskProps(body) });
+      return json(201, taskOut(page));
     }
     return json(405, { detail: 'method not allowed' });
   }
-  var intId = parseInt(parts[1], 10);
-  if (!Number.isInteger(intId)) return json(400, { detail: 'Bad id' });
+  var pid = parts[1];
+  if (!isPageId(pid)) return json(400, { detail: 'Bad id' });
   if (method === 'PUT') {
     var d1 = await requireOwner(event); if (d1) return json(d1[0], { detail: d1[1] });
-    var pid = await pageIdForInt(DB.tasks, 'seasonal_tasks', intId);
-    if (!pid) return json(404, { detail: 'Task not found' });
     var b1 = parseBody(event); if (b1 == null) return json(400, { detail: 'Invalid body' });
-    var pg = await notion.pages.update({ page_id: pid, properties: taskProps(b1, intId) });
-    return json(200, strip(taskOut(pg)));
+    try {
+      var pg = await notion.pages.update({ page_id: pid, properties: taskProps(b1) });
+      return json(200, taskOut(pg));
+    } catch (e) { return json(404, { detail: 'Task not found' }); }
   }
   if (method === 'DELETE') {
     var d2 = await requireOwner(event); if (d2) return json(d2[0], { detail: d2[1] });
-    var pid2 = await pageIdForInt(DB.tasks, 'seasonal_tasks', intId);
-    if (!pid2) return json(404, { detail: 'Task not found' });
-    await notion.pages.update({ page_id: pid2, archived: true });
-    return noContent();
+    try {
+      await notion.pages.update({ page_id: pid, archived: true });
+      return noContent();
+    } catch (e) { return json(404, { detail: 'Task not found' }); }
   }
   return json(405, { detail: 'method not allowed' });
 }
@@ -629,9 +561,9 @@ async function handleDashboard() {
   var nm2 = ((month + 1) % 12) + 1;
   var active = [], upcoming = [];
   for (var i = 0; i < tasks.length; i++) {
-    var t = strip(tasks[i]);
-    if (monthInRange(month, tasks[i].start_month, tasks[i].end_month)) active.push(t);
-    else if (tasks[i].start_month === nm1 || tasks[i].start_month === nm2) upcoming.push(t);
+    var t = tasks[i];
+    if (monthInRange(month, t.start_month, t.end_month)) active.push(t);
+    else if (t.start_month === nm1 || t.start_month === nm2) upcoming.push(t);
   }
   return json(200, {
     today: iso,
@@ -640,7 +572,7 @@ async function handleDashboard() {
     oil: oilBalance(oil),
     active_tasks: active,
     upcoming_tasks: upcoming,
-    recent_activities: activities.slice(0, 5).map(strip)
+    recent_activities: activities.slice(0, 5)
   });
 }
 
@@ -662,10 +594,9 @@ async function handleExport(parts) {
       rows3.map((h) => [h.id, h.date, h.olives_kg, h.oil_kg, h.tanake, h.yield_pct, h.notes])));
   }
   if (f === 'oil.csv') {
-    var rows4 = (await fetchAllOil()).slice().sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
-    var m = await harvestPageIdToIntMap();
+    var rows4 = (await fetchAllOil()).slice().sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
     return csvResponse('oil', toCsv(['id','date','kind','amount_kg','notes','harvest_id'],
-      rows4.map((mv) => [mv.id, mv.date, mv.kind, mv.amount_kg, mv.notes, mv._harvestPageId ? (m.get(mv._harvestPageId) || '') : ''])));
+      rows4.map((mv) => [mv.id, mv.date, mv.kind, mv.amount_kg, mv.notes, mv.harvest_id || ''])));
   }
   if (f === 'tasks.csv') {
     var rows5 = await fetchAllTasks();
@@ -673,19 +604,18 @@ async function handleExport(parts) {
       rows5.map((t) => [t.id, t.name, t.start_month, t.end_month, t.notes])));
   }
   if (f === 'all.json') {
-    var trees = (await fetchAllTrees());
+    var trees = await fetchAllTrees();
     var acts = await fetchAllActivities();
     var harvs = (await fetchAllHarvests()).slice().sort((a, b) => a.date.localeCompare(b.date));
-    var oils = (await fetchAllOil()).slice().sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
-    var m2 = await harvestPageIdToIntMap();
+    var oils = (await fetchAllOil()).slice().sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
     var tsks = await fetchAllTasks();
     return json(200, {
       exported_at: new Date().toISOString(),
-      trees: trees.map(strip),
+      trees: trees,
       activities: acts.map((a) => ({ id: a.id, date: a.date, type: a.type, trees: a.trees.map((t) => t.label).join('; '), notes: a.notes })),
-      harvests: harvs.map(strip),
-      oil_movements: oils.map((mv) => ({ id: mv.id, date: mv.date, kind: mv.kind, amount_kg: mv.amount_kg, notes: mv.notes, harvest_id: mv._harvestPageId ? (m2.get(mv._harvestPageId) || null) : null })),
-      seasonal_tasks: tsks.map(strip)
+      harvests: harvs,
+      oil_movements: oils,
+      seasonal_tasks: tsks
     });
   }
   return json(404, { detail: 'Unknown export' });
