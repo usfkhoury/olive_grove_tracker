@@ -121,7 +121,12 @@ export default function TreeDetail() {
           <div className="item" key={a.id}>
             <div>
               <div className="title">{a.type}</div>
-              <div className="sub">{fmtDate(a.date)}{a.notes ? ` — ${a.notes}` : ''}</div>
+              <div className="sub">{fmtDate(a.date)}</div>
+              {a.notes && (
+                <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>
+                  {a.notes}
+                </div>
+              )}
             </div>
           </div>
         ))}

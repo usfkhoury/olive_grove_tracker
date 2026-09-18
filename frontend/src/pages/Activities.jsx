@@ -178,8 +178,12 @@ export default function Activities() {
                 {a.trees.length > 0
                   ? a.trees.map((t) => t.label).join(', ')
                   : 'whole grove'}
-                {a.notes ? ` — ${a.notes}` : ''}
               </div>
+              {a.notes && (
+                <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>
+                  {a.notes}
+                </div>
+              )}
             </div>
             {isOwner && <button className="danger small" onClick={() => onDelete(a.id)}>✕</button>}
           </div>

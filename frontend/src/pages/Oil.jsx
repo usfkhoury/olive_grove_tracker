@@ -110,7 +110,12 @@ export default function Oil() {
           <div className="item" key={m.id}>
             <div>
               <div className="title">{KIND_LABELS[m.kind] || m.kind}</div>
-              <div className="sub">{fmtDate(m.date)}{m.notes ? ` — ${m.notes}` : ''}</div>
+              <div className="sub">{fmtDate(m.date)}</div>
+              {m.notes && (
+                <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>
+                  {m.notes}
+                </div>
+              )}
             </div>
             <div style={{ textAlign: 'right' }}>
               <span className={`amount ${m.amount_kg >= 0 ? 'in' : 'out'}`}>
