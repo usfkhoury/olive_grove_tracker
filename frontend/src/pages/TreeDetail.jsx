@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate } from '../api.js';
 import useSaveState from '../useSaveState.js';
+import SeasonChecks from '../components/SeasonChecks.jsx';
 
 export default function TreeDetail() {
   const { id } = useParams();
@@ -108,6 +109,8 @@ export default function TreeDetail() {
           </>
         )}
       </form>
+
+      <SeasonChecks treeId={id} isOwner={isOwner} />
 
       <h2>History for this tree</h2>
       <div className="card">

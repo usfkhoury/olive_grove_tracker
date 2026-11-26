@@ -114,6 +114,7 @@ export default function Dashboard() {
             ['harvests', 'Harvests'],
             ['oil', 'Oil ledger'],
             ['tasks', 'Calendar'],
+            ['checks', 'Tree checks'],
           ].map(([entity, label]) => (
             <a key={entity} className="chip" href={`/api/export/${entity}.csv`} download>
               {label} CSV

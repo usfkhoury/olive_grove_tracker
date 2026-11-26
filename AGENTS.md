@@ -28,6 +28,13 @@ Live: **https://olives.usfkhoury.com** — Netlify site
 | harvests       | Harvests        | `NOTION_DB_HARVESTS`   |
 | oil_movements  | Oil movements   | `NOTION_DB_OIL`        |
 | seasonal_tasks | Seasonal tasks  | `NOTION_DB_TASKS`      |
+| tree_checks    | Tree checks     | `NOTION_DB_CHECKS` (optional) |
+
+Tree checks = one row per tree per season (`T12 — 2026`): Tree + Press
+relations, Canopy density / Fruit size / Pruning planned selects, Ripeness at
+harvest (0–7), Sacks, Notes. Season is parsed from the Name — no Season
+property. API: `GET/POST /checks` (`?tree_id=`, `?season=`), `PUT/DELETE
+/checks/:id`; one check per tree per season (409 on duplicate).
 
 ### Hard invariants — do not break
 
@@ -45,7 +52,8 @@ Live: **https://olives.usfkhoury.com** — Netlify site
 ## Env vars (Netlify → Environment)
 
 Backend: `NOTION_TOKEN` (or legacy `NOTION_API_KEY`), `GOOGLE_CLIENT_ID`,
-`OWNER_EMAIL` (or legacy `OLIVE_OWNER_EMAIL`), plus the five `NOTION_DB_*`.
+`OWNER_EMAIL` (or legacy `OLIVE_OWNER_EMAIL`), plus the five `NOTION_DB_*`
+and `NOTION_DB_CHECKS`.
 
 Frontend build: `VITE_GOOGLE_CLIENT_ID` (same value as `GOOGLE_CLIENT_ID`),
 `VITE_HOME_URL`.

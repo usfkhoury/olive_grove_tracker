@@ -38,6 +38,13 @@ export const ACTIVITY_TYPES = [
   'Spraying', 'Watering', 'Harvesting', 'Other',
 ];
 
+// Must match the select options on the Notion "Tree checks" DB.
+export const CHECK_OPTIONS = {
+  canopy_density: ['Low', 'Medium', 'High', 'Very high'],
+  fruit_size: ['Small', 'Medium', 'Big'],
+  pruning_planned: ['Skip', 'Light', 'Medium', 'Heavy'],
+};
+
 export const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',

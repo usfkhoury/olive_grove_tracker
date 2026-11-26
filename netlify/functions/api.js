@@ -11,7 +11,8 @@
  *
  * Env: NOTION_TOKEN, OWNER_EMAIL, GOOGLE_CLIENT_ID,
  *      NOTION_DB_TREES, NOTION_DB_ACTIVITIES,
- *      NOTION_DB_HARVESTS, NOTION_DB_OIL, NOTION_DB_TASKS.
+ *      NOTION_DB_HARVESTS, NOTION_DB_OIL, NOTION_DB_TASKS,
+ *      NOTION_DB_CHECKS (optional — /checks returns [] when unset).
  */
 const { Client } = require('@notionhq/client');
 const { OAuth2Client } = require('google-auth-library');
@@ -24,7 +25,8 @@ const DB = {
   activities: process.env.NOTION_DB_ACTIVITIES,
   harvests: process.env.NOTION_DB_HARVESTS,
   oil: process.env.NOTION_DB_OIL,
-  tasks: process.env.NOTION_DB_TASKS
+  tasks: process.env.NOTION_DB_TASKS,
+  checks: process.env.NOTION_DB_CHECKS
 };
 
 const notion = new Client({ auth: NOTION_TOKEN});
@@ -164,6 +166,39 @@ function taskOut(page) {
   };
 }
 
+// Tree checks: one row per tree per season. Name is derived (`T12 — 2026`),
+// season is parsed back out of it so there is no separate Season property.
+const CHECK_OPTIONS = {
+  canopy_density: ['Low', 'Medium', 'High', 'Very high'],
+  fruit_size: ['Small', 'Medium', 'Big'],
+  pruning_planned: ['Skip', 'Light', 'Medium', 'Heavy']
+};
+function checkOut(page, treeLookup, harvestLookup) {
+  var p = page.properties || {};
+  var name = readTitle(p.Name);
+  var treeId = readRelIds(p.Tree)[0] || null;
+  var pressId = readRelIds(p.Press)[0] || null;
+  var press = pressId && harvestLookup ? harvestLookup.get(pressId) : null;
+  var m = name.match(/(\d{4})\s*$/);
+  var season = m ? parseInt(m[1], 10) : (press && press.date ? parseInt(press.date.slice(0, 4), 10) : null);
+  var tree = treeId && treeLookup ? treeLookup.get(treeId) : null;
+  return {
+    id: page.id,
+    name: name,
+    season: season,
+    tree_id: treeId,
+    tree_label: tree ? tree.label : '',
+    press_id: pressId,
+    press_date: press ? press.date : null,
+    canopy_density: readSelect(p['Canopy density']),
+    fruit_size: readSelect(p['Fruit size']),
+    ripeness: readNum(p['Ripeness at harvest']),
+    sacks: readNum(p.Sacks),
+    pruning_planned: readSelect(p['Pruning planned']),
+    notes: notesPlain(readRichRaw(p.Notes))
+  };
+}
+
 // ---- property builders (no marker) ----
 function treeProps(data) {
   return {
@@ -215,6 +250,27 @@ function taskProps(data) {
   };
 }
 
+function checkSelect(field, v) {
+  if (!v) return { select: null };
+  if (CHECK_OPTIONS[field].indexOf(v) === -1) throw new RangeError('Invalid ' + field + ': ' + v);
+  return { select: { name: v } };
+}
+function checkProps(data, treeLabel) {
+  var rip = data.ripeness == null || data.ripeness === '' ? null : Number(data.ripeness);
+  if (rip != null && (isNaN(rip) || rip < 0 || rip > 7)) throw new RangeError('Ripeness must be 0–7');
+  return {
+    Name: { title: richText(treeLabel + ' — ' + data.season) },
+    Tree: { relation: [{ id: data.tree_id }] },
+    Press: { relation: data.press_id ? [{ id: data.press_id }] : [] },
+    'Canopy density': checkSelect('canopy_density', data.canopy_density),
+    'Fruit size': checkSelect('fruit_size', data.fruit_size),
+    'Ripeness at harvest': { number: rip },
+    Sacks: { number: data.sacks == null || data.sacks === '' ? null : Number(data.sacks) },
+    'Pruning planned': checkSelect('pruning_planned', data.pruning_planned),
+    Notes: { rich_text: richText(data.notes || '') }
+  };
+}
+
 // ---- fetch-all helpers ----
 async function fetchAllTrees() {
   var pages = await queryAll(DB.trees);
@@ -246,6 +302,19 @@ async function fetchAllActivities() {
   }
   var out = actPages.map((p) => activityOut(p, lookup));
   out.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  return out;
+}
+
+async function fetchAllChecks() {
+  if (!DB.checks) return [];
+  var pages = await queryAll(DB.checks);
+  var treeLookup = new Map((await fetchAllTrees()).map((t) => [t.id, t]));
+  var harvestLookup = new Map((await fetchAllHarvests()).map((h) => [h.id, h]));
+  var out = pages.map((p) => checkOut(p, treeLookup, harvestLookup));
+  // Newest season first, then grove order (T1, T2 … not T1, T10).
+  var order = new Map(Array.from(treeLookup.values()).map((t, i) => [t.id, i]));
+  out.sort((a, b) => (b.season || 0) - (a.season || 0) ||
+    (order.get(a.tree_id) ?? 999) - (order.get(b.tree_id) ?? 999));
   return out;
 }
 
@@ -478,6 +547,69 @@ async function handleHarvests(method, parts, event) {
   return json(405, { detail: 'method not allowed' });
 }
 
+async function validateCheckBody(body) {
+  if (!isPageId(body.tree_id)) return [400, 'tree_id is required'];
+  if (body.press_id && !isPageId(body.press_id)) return [400, 'Bad press_id'];
+  var season = parseInt(body.season, 10);
+  if (!(season >= 2000 && season <= 2100)) return [400, 'season must be a year'];
+  body.season = season;
+  try {
+    var tp = await notion.pages.retrieve({ page_id: body.tree_id });
+    return { label: readTitle((tp.properties || {}).Label) };
+  } catch (e) { return [400, 'Tree not found']; }
+}
+
+async function handleChecks(method, parts, event) {
+  if (!DB.checks) {
+    if (method === 'GET' && parts.length === 1) return json(200, []);
+    return json(500, { detail: 'Tree checks not configured (NOTION_DB_CHECKS).' });
+  }
+  if (parts.length === 1) {
+    if (method === 'GET') {
+      var q = event.queryStringParameters || {};
+      var rows = await fetchAllChecks();
+      if (q.tree_id) rows = rows.filter((c) => c.tree_id === q.tree_id);
+      if (q.season) rows = rows.filter((c) => String(c.season) === String(q.season));
+      return json(200, rows);
+    }
+    if (method === 'POST') {
+      var d = await requireOwner(event); if (d) return json(d[0], { detail: d[1] });
+      var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
+      var v = await validateCheckBody(body); if (Array.isArray(v)) return json(v[0], { detail: v[1] });
+      var dupes = (await fetchAllChecks()).filter((c) => c.tree_id === body.tree_id && c.season === body.season);
+      if (dupes.length) return json(409, { detail: v.label + ' already has a ' + body.season + ' check' });
+      var props;
+      try { props = checkProps(body, v.label); } catch (e) { return json(422, { detail: e.message }); }
+      var page = await notion.pages.create({ parent: { database_id: DB.checks }, properties: props });
+      var made = (await fetchAllChecks()).find((c) => c.id === page.id);
+      return json(201, made || checkOut(page));
+    }
+    return json(405, { detail: 'method not allowed' });
+  }
+  var pid = parts[1];
+  if (!isPageId(pid)) return json(400, { detail: 'Bad id' });
+  if (method === 'PUT') {
+    var d1 = await requireOwner(event); if (d1) return json(d1[0], { detail: d1[1] });
+    var b1 = parseBody(event); if (b1 == null) return json(400, { detail: 'Invalid body' });
+    var v1 = await validateCheckBody(b1); if (Array.isArray(v1)) return json(v1[0], { detail: v1[1] });
+    var props1;
+    try { props1 = checkProps(b1, v1.label); } catch (e) { return json(422, { detail: e.message }); }
+    try {
+      await notion.pages.update({ page_id: pid, properties: props1 });
+    } catch (e) { return json(404, { detail: 'Check not found' }); }
+    var u = (await fetchAllChecks()).find((c) => c.id === pid);
+    return u ? json(200, u) : json(404, { detail: 'Check not found' });
+  }
+  if (method === 'DELETE') {
+    var d2 = await requireOwner(event); if (d2) return json(d2[0], { detail: d2[1] });
+    try {
+      await notion.pages.update({ page_id: pid, archived: true });
+      return noContent();
+    } catch (e) { return json(404, { detail: 'Check not found' }); }
+  }
+  return json(405, { detail: 'method not allowed' });
+}
+
 const OUT_KINDS = { gift: 1, home: 1, sale: 1 };
 const VALID_KINDS = { gift: 1, home: 1, sale: 1, adjustment: 1 };
 
@@ -603,19 +735,26 @@ async function handleExport(parts) {
     return csvResponse('tasks', toCsv(['id','name','start_month','end_month','notes'],
       rows5.map((t) => [t.id, t.name, t.start_month, t.end_month, t.notes])));
   }
+  if (f === 'checks.csv') {
+    var rows6 = (await fetchAllChecks()).slice().reverse();
+    return csvResponse('tree_checks', toCsv(['id','tree','season','press_date','canopy_density','fruit_size','ripeness','sacks','pruning_planned','notes'],
+      rows6.map((c) => [c.id, c.tree_label, c.season, c.press_date || '', c.canopy_density || '', c.fruit_size || '', c.ripeness, c.sacks, c.pruning_planned || '', c.notes])));
+  }
   if (f === 'all.json') {
     var trees = await fetchAllTrees();
     var acts = await fetchAllActivities();
     var harvs = (await fetchAllHarvests()).slice().sort((a, b) => a.date.localeCompare(b.date));
     var oils = (await fetchAllOil()).slice().sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
     var tsks = await fetchAllTasks();
+    var chks = await fetchAllChecks();
     return json(200, {
       exported_at: new Date().toISOString(),
       trees: trees,
       activities: acts.map((a) => ({ id: a.id, date: a.date, type: a.type, trees: a.trees.map((t) => t.label).join('; '), notes: a.notes })),
       harvests: harvs,
       oil_movements: oils,
-      seasonal_tasks: tsks
+      seasonal_tasks: tsks,
+      tree_checks: chks
     });
   }
   return json(404, { detail: 'Unknown export' });
@@ -649,6 +788,7 @@ exports.handler = async (event) => {
     if (head === 'harvests') return await handleHarvests(method, parts, event);
     if (head === 'oil') return await handleOil(method, parts, event);
     if (head === 'tasks') return await handleTasks(method, parts, event);
+    if (head === 'checks') return await handleChecks(method, parts, event);
     if (head === 'dashboard' && method === 'GET') return await handleDashboard();
     if (head === 'export' && method === 'GET') return await handleExport(parts);
     if (head === 'auth') return await handleAuth(method, parts, event);
