@@ -116,15 +116,17 @@ export default function TreeDetail() {
       <div className="card">
         {activities.length === 0 && (
           <p className="empty">
-            No activities tagged to this tree yet. Tag trees when logging from
-            the <Link to="/activities">Log</Link> page.
+            Nothing logged for this tree yet. Log work from the{' '}
+            <Link to="/calendar">Calendar</Link>.
           </p>
         )}
         {activities.map((a) => (
           <div className="item" key={a.id}>
             <div>
               <div className="title">{a.label}</div>
-              <div className="sub">{fmtDate(a.date)}</div>
+              <div className="sub">
+                {fmtDate(a.date)} — {a.trees.length === 0 ? 'whole grove' : a.trees.map((t) => t.label).join(', ')}
+              </div>
               {a.notes && (
                 <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>
                   {a.notes}

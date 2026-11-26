@@ -475,7 +475,8 @@ async function handleActivities(method, parts, event) {
       var q = event.queryStringParameters || {};
       var rows = await fetchAllActivities();
       if (q.tree_id) {
-        rows = rows.filter((a) => a.trees.some((t) => t.id === q.tree_id));
+        // No trees tagged = whole grove, so it belongs to every tree's history.
+        rows = rows.filter((a) => a.trees.length === 0 || a.trees.some((t) => t.id === q.tree_id));
       }
       var limit = q.limit ? parseInt(q.limit, 10) : 200;
       return json(200, rows.slice(0, limit));
