@@ -194,6 +194,17 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
   box-shadow: var(--shadow);
 }
 .tree-dot.removed { background: #b9b6a8; }
+.grove-map-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius); }
+.grove-map-scroll .grove-map { width: max-content; }
+.grove-map-scroll .tree-dot { width: 44px; height: 44px; font-size: 0.72rem; }
+.tree-dot.stairs {
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  border: 2px solid var(--muted);
+  box-shadow: none;
+  font-size: 1.1rem;
+}
 .tree-dot.empty {
   background: transparent;
   border: 1px dashed var(--olive-light);
@@ -217,6 +228,7 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
   background: var(--olive-light);
 }
 .grove-legend .legend-dot.removed { background: #b9b6a8; }
+.grove-legend .legend-dot.stairs { background: transparent; border: 1.5px solid var(--muted); border-radius: 2px; }
 .grove-legend .legend-dot.empty {
   background: transparent;
   border: 1px dashed var(--olive-light);

@@ -5,6 +5,12 @@ import useCollection from '../useCollection.js';
 
 const EMPTY = { label: '', row: 1, col: 1, variety: '', planted_year: '', notes: '' };
 
+// Fixed grove features (not trees). Row = top→bottom, col = left→right.
+const STAIRS = [
+  { row: 2, col: 15, title: 'Stairs up to terrace 1' },
+  { row: 3, col: 19, title: 'Stairs up to terrace 2' },
+];
+
 export default function Trees() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -25,16 +31,22 @@ export default function Trees() {
     }
   };
 
-  const maxCol = Math.max(4, ...trees.map((t) => t.col || 1));
-  const maxRow = Math.max(1, ...trees.map((t) => t.row || 1));
-  // Faint placeholders for grid cells with no tree, so the map reads as a plot.
-  const occupied = new Set(trees.map((t) => `${t.row}-${t.col}`));
+  const cells = [...trees, ...STAIRS];
+  const maxCol = Math.max(4, ...cells.map((t) => t.col || 1));
+  // Faint placeholders only for holes inside a row's planted span — terraces
+  // have different lengths, so cells outside the span are not missing trees.
+  const occupied = new Set(cells.map((t) => `${t.row}-${t.col}`));
+  const span = {};
+  cells.forEach((t) => {
+    const s = span[t.row] || { min: t.col, max: t.col };
+    span[t.row] = { min: Math.min(s.min, t.col), max: Math.max(s.max, t.col) };
+  });
   const gaps = [];
-  for (let r = 1; r <= maxRow; r += 1) {
-    for (let c = 1; c <= maxCol; c += 1) {
+  Object.entries(span).forEach(([r, { min, max }]) => {
+    for (let c = min; c <= max; c += 1) {
       if (!occupied.has(`${r}-${c}`)) gaps.push(`${r}-${c}`);
     }
-  }
+  });
 
   return (
     <>
@@ -91,10 +103,21 @@ export default function Trees() {
       )}
 
       <h2>Grove map</h2>
+      <div className="grove-map-scroll">
       <div
         className="grove-map"
-        style={{ gridTemplateColumns: `repeat(${maxCol}, 1fr)` }}
+        style={{ gridTemplateColumns: `repeat(${maxCol}, 44px)` }}
       >
+        {STAIRS.map((s) => (
+          <span
+            key={`stairs-${s.row}-${s.col}`}
+            className="tree-dot stairs"
+            style={{ gridRow: s.row, gridColumn: s.col }}
+            title={s.title}
+          >
+            ⇡
+          </span>
+        ))}
         {gaps.map((cell) => {
           const [r, c] = cell.split('-');
           return (
@@ -118,8 +141,10 @@ export default function Trees() {
           </Link>
         ))}
       </div>
+      </div>
       <div className="grove-legend">
         <span><i className="legend-dot" /> active</span>
+        <span><i className="legend-dot stairs" /> stairs</span>
         <span><i className="legend-dot removed" /> removed</span>
         <span><i className="legend-dot empty" /> empty</span>
       </div>
