@@ -3,6 +3,7 @@ import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
 import useCollection from '../useCollection.js';
 import TreeChips from '../components/TreeChips.jsx';
+import EditActivityForm from '../components/EditActivityForm.jsx';
 
 // Scheduled work is logged from the Calendar ("log" on a task) and is labelled
 // with the task's name. Manual entries here are for unscheduled work: Other.
@@ -15,8 +16,9 @@ export default function Activities() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(EMPTY());
   const [filter, setFilter] = useState(EMPTY_FILTER);
+  const [editingId, setEditingId] = useState(null);
   const { isOwner } = useAuth();
-  const { items: activities, error, create, remove, saving, saved } = useCollection('/activities');
+  const { items: activities, error, create, remove, reload, saving, saved } = useCollection('/activities');
 
   const filterActive =
     filter.q || filter.from || filter.to || filter.type;
@@ -49,8 +51,8 @@ export default function Activities() {
     }
   };
 
-  const onDelete = (id) => {
-    if (confirm('Delete this activity?')) remove(id);
+  const onDelete = async (id) => {
+    if (confirm('Delete this activity?') && await remove(id)) setEditingId(null);
   };
 
   return (
@@ -143,7 +145,17 @@ export default function Activities() {
         {activities.length > 0 && shown.length === 0 && (
           <p className="empty">No activities match these filters.</p>
         )}
-        {shown.map((a) => (
+        {shown.map((a) => (editingId === a.id ? (
+          <div className="item" key={a.id}>
+            <EditActivityForm
+              activity={a}
+              trees={trees}
+              onCancel={() => setEditingId(null)}
+              onDone={async () => { setEditingId(null); await reload(); }}
+              onDelete={() => onDelete(a.id)}
+            />
+          </div>
+        ) : (
           <div className="item" key={a.id}>
             <div>
               <div className="title">{a.label}</div>
@@ -159,9 +171,11 @@ export default function Activities() {
                 </div>
               )}
             </div>
-            {isOwner && <button className="danger small" onClick={() => onDelete(a.id)}>✕</button>}
+            {isOwner && (
+              <button className="secondary small" onClick={() => setEditingId(a.id)}>edit</button>
+            )}
           </div>
-        ))}
+        )))}
       </div>
     </>
   );
