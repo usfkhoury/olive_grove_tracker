@@ -23,3 +23,6 @@ __pycache__/
 # Root node_modules (function deps installed by Netlify)
 /node_modules/
 package-lock.json
+
+# Vite temp config bundles
+frontend/vite.config.js.timestamp-*

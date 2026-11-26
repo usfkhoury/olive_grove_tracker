@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext.jsx';
 import api, { MONTHS } from '../api.js';
 import useSaveState from '../useSaveState.js';
+import LogTaskForm from '../components/LogTaskForm.jsx';
 
 const EMPTY = { name: '', start_month: 1, end_month: 1, notes: '' };
 
@@ -14,11 +15,17 @@ export default function CalendarPage() {
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
+  const [trees, setTrees] = useState([]);
+  const [logKey, setLogKey] = useState(null); // `${month}-${taskId}` of the open log form
+  const [logged, setLogged] = useState('');
   const { isOwner } = useAuth();
   const { saving, saved, run } = useSaveState();
 
   const load = () => api.get('/tasks').then(setTasks).catch((e) => setError(e.message));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    api.get('/trees').then(setTrees).catch(() => {});
+  }, []);
 
   const currentMonth = new Date().getMonth() + 1;
 
@@ -74,6 +81,7 @@ export default function CalendarPage() {
       <h1>Seasonal Calendar</h1>
       {error && <p className="error">{error}</p>}
       {saved && <p className="saved">Saved ✓</p>}
+      {logged && <p className="saved">Logged “{logged}” ✓</p>}
 
       {isOwner && (
         <button className="add-toggle" onClick={() => { setShowAdd(!showAdd); setEditingId(null); setForm(EMPTY); }}>
@@ -121,7 +129,8 @@ export default function CalendarPage() {
             </h3>
             {monthTasks.length === 0 && <div className="none">Rest month 🌿</div>}
             {monthTasks.map((t) => (
-              <div className="item" key={t.id}>
+              <div key={t.id}>
+              <div className="item">
                 <div>
                   <div className="title">{t.name}</div>
                   <div className="sub">
@@ -133,12 +142,29 @@ export default function CalendarPage() {
                     </div>
                   )}
                 </div>
-                {isOwner && t.start_month === month && (
+                {isOwner && (
                   <div style={{ whiteSpace: 'nowrap' }}>
-                    <button className="secondary small" onClick={() => edit(t)}>edit</button>{' '}
-                    <button className="danger small" onClick={() => remove(t.id)}>✕</button>
+                    <button className="small" onClick={() => {
+                      setLogged('');
+                      setLogKey(logKey === `${month}-${t.id}` ? null : `${month}-${t.id}`);
+                    }}>log</button>
+                    {t.start_month === month && (
+                      <>
+                        {' '}<button className="secondary small" onClick={() => edit(t)}>edit</button>
+                        {' '}<button className="danger small" onClick={() => remove(t.id)}>✕</button>
+                      </>
+                    )}
                   </div>
                 )}
+              </div>
+              {logKey === `${month}-${t.id}` && (
+                <LogTaskForm
+                  task={t}
+                  trees={trees}
+                  onCancel={() => setLogKey(null)}
+                  onDone={() => { setLogKey(null); setLogged(t.name); }}
+                />
+              )}
               </div>
             ))}
           </div>

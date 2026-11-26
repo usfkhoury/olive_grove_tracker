@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext.jsx';
 import api, { ACTIVITY_TYPES, fmtDate, today } from '../api.js';
 import useCollection from '../useCollection.js';
+import TreeChips from '../components/TreeChips.jsx';
 
-const EMPTY = () => ({ date: today(), type: 'Fertilizing', notes: '', tree_ids: [] });
+// Scheduled work is logged from the Calendar ("log" on a task). Manual entries
+// here are only for unscheduled work, so they are always type Other.
+const EMPTY = () => ({ date: today(), type: 'Other', notes: '', tree_ids: [] });
 
 const EMPTY_FILTER = { q: '', from: '', to: '', type: '' };
 
@@ -35,14 +38,6 @@ export default function Activities() {
     api.get('/trees').then(setTrees).catch(() => {});
   }, []);
 
-  const toggleTree = (id) =>
-    setForm((f) => ({
-      ...f,
-      tree_ids: f.tree_ids.includes(id)
-        ? f.tree_ids.filter((t) => t !== id)
-        : [...f.tree_ids, id],
-    }));
-
   const submit = async (e) => {
     e.preventDefault();
     const created = await create(form);
@@ -71,53 +66,30 @@ export default function Activities() {
 
       {isOwner && (
         <button className="add-toggle" onClick={() => setShowAdd(!showAdd)}>
-          {showAdd ? 'Cancel' : '+ Log Activity'}
+          {showAdd ? 'Cancel' : '+ Log Other Activity'}
         </button>
+      )}
+      {isOwner && !showAdd && (
+        <p className="sub" style={{ color: 'var(--muted)', fontSize: '0.8rem', marginTop: -4 }}>
+          Scheduled work (sprays, fertilizing, pruning…) is logged from the Calendar.
+        </p>
       )}
 
       {isOwner && showAdd && (
         <form className="panel card" onSubmit={submit}>
-          <div className="row2">
-            <label className="field">
-              Date
-              <input type="date" required value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            </label>
-            <label className="field">
-              Type
-              <select value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                {ACTIVITY_TYPES.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </label>
-          </div>
+          <label className="field">
+            Date
+            <input type="date" required value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          </label>
           <label className="field">
             Notes
             <textarea value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="e.g. 2 sacks of manure per tree" />
+              placeholder="e.g. Rebuilt collapsed jloul section under T22" required />
           </label>
-          <label className="field">
-            Trees — leave empty for the whole grove
-            <div>
-              {trees.filter((t) => t.status === 'active').map((t) => (
-                <button
-                  type="button"
-                  key={t.id}
-                  className="chip"
-                  style={{
-                    border: 0,
-                    cursor: 'pointer',
-                    background: form.tree_ids.includes(t.id) ? 'var(--olive)' : undefined,
-                    color: form.tree_ids.includes(t.id) ? '#fff' : undefined,
-                  }}
-                  onClick={() => toggleTree(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </label>
+          <TreeChips trees={trees} selected={form.tree_ids}
+            onChange={(ids) => setForm({ ...form, tree_ids: ids })} />
           <button type="submit" disabled={saving}>
             {saving ? 'Saving…' : 'Save activity'}
           </button>
