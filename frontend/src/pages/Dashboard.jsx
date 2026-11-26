@@ -82,7 +82,7 @@ export default function Dashboard() {
         {data.recent_activities.map((a) => (
           <div className="item" key={a.id}>
             <div>
-              <div className="title">{a.type}</div>
+              <div className="title">{a.label}</div>
               <div className="sub">
                 {fmtDate(a.date)}
                 {a.trees.length > 0

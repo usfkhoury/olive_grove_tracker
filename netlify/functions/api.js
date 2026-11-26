@@ -139,9 +139,15 @@ function oilOut(page) {
     harvest_id: rel[0] || null
   };
 }
-function activityOut(page, treeLookup) {
+// An activity logged from the Calendar links its Seasonal task; its label is the
+// task's *current* name (renames propagate). Manual entries have no task and
+// show their Type (always "Other" for new rows).
+function activityOut(page, treeLookup, taskLookup) {
   var p = page.properties || {};
   var rel = readRelIds(p.Trees);
+  var taskId = readRelIds(p.Task)[0] || null;
+  var taskName = taskId && taskLookup ? taskLookup.get(taskId) : null;
+  var type = readSelect(p.Type) || '';
   var trees = [];
   for (var i = 0; i < rel.length; i++) {
     var t = treeLookup.get(rel[i]);
@@ -150,7 +156,9 @@ function activityOut(page, treeLookup) {
   return {
     id: page.id,
     date: readDate(p.Date) || '',
-    type: readSelect(p.Type) || '',
+    type: type,
+    task_id: taskId,
+    label: taskName || type || 'Other',
     notes: notesPlain(readRichRaw(p.Notes)),
     trees: trees
   };
@@ -232,14 +240,26 @@ function oilProps(data, harvestPageId) {
   p.Harvest = harvestPageId ? { relation: [{ id: harvestPageId }] } : { relation: [] };
   return p;
 }
-function activityProps(data, treePageIds) {
+function activityProps(data, treePageIds, taskName) {
+  var task = data.task_id || null;
   return {
-    Name: { title: richText(data.type + ' — ' + data.date) },
+    Name: { title: richText((task ? taskName : 'Other') + ' — ' + data.date) },
     Date: { date: { start: data.date } },
-    Type: { select: { name: data.type } },
+    Type: task ? { select: null } : { select: { name: 'Other' } },
+    Task: { relation: task ? [{ id: task }] : [] },
     Trees: { relation: (treePageIds || []).map((pid) => ({ id: pid })) },
     Notes: { rich_text: richText(data.notes || '') }
   };
+}
+// Resolve + validate an optional task_id; returns [status, msg] on error,
+// else the task's name ('' when no task).
+async function resolveTask(body) {
+  if (!body.task_id) return '';
+  if (!isPageId(body.task_id)) return [400, 'Bad task_id'];
+  try {
+    var tp = await notion.pages.retrieve({ page_id: body.task_id });
+    return readTitle((tp.properties || {}).Name);
+  } catch (e) { return [400, 'Task not found']; }
 }
 function taskProps(data) {
   return {
@@ -295,12 +315,14 @@ async function fetchAllTasks() {
 async function fetchAllActivities() {
   var treePages = await queryAll(DB.trees);
   var actPages = await queryAll(DB.activities);
+  var taskPages = await queryAll(DB.tasks);
   var lookup = new Map();
   for (var i = 0; i < treePages.length; i++) {
     var tp = treePages[i];
     lookup.set(tp.id, { id: tp.id, label: readTitle(tp.properties && tp.properties.Label) });
   }
-  var out = actPages.map((p) => activityOut(p, lookup));
+  var taskLookup = new Map(taskPages.map((t) => [t.id, readTitle((t.properties || {}).Name)]));
+  var out = actPages.map((p) => activityOut(p, lookup, taskLookup));
   out.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   return out;
 }
@@ -465,7 +487,8 @@ async function handleActivities(method, parts, event) {
       for (var i = 0; i < treeIds.length; i++) {
         if (!isPageId(treeIds[i])) return json(400, { detail: 'One or more tree ids are invalid' });
       }
-      var page = await notion.pages.create({ parent: { database_id: DB.activities }, properties: activityProps(body, treeIds) });
+      var tn = await resolveTask(body); if (Array.isArray(tn)) return json(tn[0], { detail: tn[1] });
+      var page = await notion.pages.create({ parent: { database_id: DB.activities }, properties: activityProps(body, treeIds, tn) });
       // Rebuild with tree labels for the response
       var rows2 = await fetchAllActivities();
       var made = rows2.find((r) => r.id === page.id);
@@ -483,7 +506,8 @@ async function handleActivities(method, parts, event) {
       if (!isPageId(tids[j])) return json(400, { detail: 'One or more tree ids are invalid' });
     }
     try {
-      var upd = await notion.pages.update({ page_id: pid, properties: activityProps(b1, tids) });
+      var tn1 = await resolveTask(b1); if (Array.isArray(tn1)) return json(tn1[0], { detail: tn1[1] });
+      var upd = await notion.pages.update({ page_id: pid, properties: activityProps(b1, tids, tn1) });
       var rows3 = await fetchAllActivities();
       var u = rows3.find((r) => r.id === upd.id);
       return json(200, u || activityOut(upd, new Map()));
@@ -717,8 +741,8 @@ async function handleExport(parts) {
   }
   if (f === 'activities.csv') {
     var rows2 = await fetchAllActivities();
-    return csvResponse('activities', toCsv(['id','date','type','trees','notes'],
-      rows2.map((a) => [a.id, a.date, a.type, a.trees.map((t) => t.label).join('; '), a.notes])));
+    return csvResponse('activities', toCsv(['id','date','activity','trees','notes'],
+      rows2.map((a) => [a.id, a.date, a.label, a.trees.map((t) => t.label).join('; '), a.notes])));
   }
   if (f === 'harvests.csv') {
     var rows3 = (await fetchAllHarvests()).slice().sort((a, b) => a.date.localeCompare(b.date));
@@ -750,7 +774,7 @@ async function handleExport(parts) {
     return json(200, {
       exported_at: new Date().toISOString(),
       trees: trees,
-      activities: acts.map((a) => ({ id: a.id, date: a.date, type: a.type, trees: a.trees.map((t) => t.label).join('; '), notes: a.notes })),
+      activities: acts.map((a) => ({ id: a.id, date: a.date, activity: a.label, task_id: a.task_id, trees: a.trees.map((t) => t.label).join('; '), notes: a.notes })),
       harvests: harvs,
       oil_movements: oils,
       seasonal_tasks: tsks,

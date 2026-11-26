@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext.jsx';
-import api, { ACTIVITY_TYPES, fmtDate, today } from '../api.js';
+import api, { fmtDate, today } from '../api.js';
 import useCollection from '../useCollection.js';
 import TreeChips from '../components/TreeChips.jsx';
 
-// Scheduled work is logged from the Calendar ("log" on a task). Manual entries
-// here are only for unscheduled work, so they are always type Other.
+// Scheduled work is logged from the Calendar ("log" on a task) and is labelled
+// with the task's name. Manual entries here are for unscheduled work: Other.
 const EMPTY = () => ({ date: today(), type: 'Other', notes: '', tree_ids: [] });
 
 const EMPTY_FILTER = { q: '', from: '', to: '', type: '' };
@@ -25,14 +25,16 @@ export default function Activities() {
   const shown = activities.filter((a) => {
     if (filter.from && a.date < filter.from) return false;
     if (filter.to && a.date > filter.to) return false;
-    if (filter.type && a.type !== filter.type) return false;
+    if (filter.type && a.label !== filter.type) return false;
     if (filter.q) {
       const hay =
-        `${a.type} ${a.notes} ${a.trees.map((t) => t.label).join(' ')}`.toLowerCase();
+        `${a.label} ${a.notes} ${a.trees.map((t) => t.label).join(' ')}`.toLowerCase();
       if (!hay.includes(filter.q.toLowerCase())) return false;
     }
     return true;
   });
+
+  const labels = [...new Set(activities.map((a) => a.label))].sort();
 
   useEffect(() => {
     api.get('/trees').then(setTrees).catch(() => {});
@@ -104,7 +106,7 @@ export default function Activities() {
               type="search"
               value={filter.q}
               onChange={(e) => setFilter({ ...filter, q: e.target.value })}
-              placeholder="type, notes or tree label"
+              placeholder="activity, notes or tree label"
             />
           </label>
           <div className="row2">
@@ -120,11 +122,11 @@ export default function Activities() {
             </label>
           </div>
           <label className="field">
-            Type
+            Activity
             <select value={filter.type}
               onChange={(e) => setFilter({ ...filter, type: e.target.value })}>
-              <option value="">All types</option>
-              {ACTIVITY_TYPES.map((t) => <option key={t}>{t}</option>)}
+              <option value="">All activities</option>
+              {labels.map((t) => <option key={t}>{t}</option>)}
             </select>
           </label>
           {filterActive && (
@@ -144,7 +146,7 @@ export default function Activities() {
         {shown.map((a) => (
           <div className="item" key={a.id}>
             <div>
-              <div className="title">{a.type}</div>
+              <div className="title">{a.label}</div>
               <div className="sub">
                 {fmtDate(a.date)} —{' '}
                 {a.trees.length > 0

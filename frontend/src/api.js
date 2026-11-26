@@ -33,11 +33,6 @@ export default {
   del: (path) => request('DELETE', path),
 };
 
-export const ACTIVITY_TYPES = [
-  'Fertilizing', 'Plowing', 'Weeding', 'Pruning',
-  'Spraying', 'Watering', 'Harvesting', 'Other',
-];
-
 // Must match the select options on the Notion "Tree checks" DB.
 export const CHECK_OPTIONS = {
   canopy_density: ['Low', 'Medium', 'High', 'Very high'],

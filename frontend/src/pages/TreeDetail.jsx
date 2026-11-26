@@ -123,7 +123,7 @@ export default function TreeDetail() {
         {activities.map((a) => (
           <div className="item" key={a.id}>
             <div>
-              <div className="title">{a.type}</div>
+              <div className="title">{a.label}</div>
               <div className="sub">{fmtDate(a.date)}</div>
               {a.notes && (
                 <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>
