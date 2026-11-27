@@ -435,25 +435,30 @@ header.topbar .brand {
 /* Harvest chart */
 .harvest-chart svg { display: block; overflow: visible; }
 .harvest-chart text { font-family: inherit; }
-.hc-title { font-size: 10px; font-weight: 600; fill: var(--muted); }
+.hc-title { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; fill: var(--muted); }
 .hc-col { cursor: pointer; }
 .hc-hit { fill: transparent; }
 .hc-col:hover .hc-hit { fill: var(--olive-pale); opacity: 0.5; }
 .hc-sel { fill: var(--chip-gold-bg); }
 .hc-olives { fill: var(--olive-light); opacity: 0.55; }
 .hc-oil { fill: var(--olive-dark); }
-.hc-val { font-size: 9px; fill: var(--muted); text-anchor: middle; }
-.hc-val-oil { fill: var(--olive-dark); font-weight: 700; }
-.hc-year { font-size: 10px; fill: var(--muted); text-anchor: middle; }
-.hc-year.on { fill: var(--text); font-weight: 700; }
+.hc-val { font-size: 10px; fill: var(--muted); text-anchor: middle; }
+.hc-val-oil { fill: var(--olive-dark); }
+.hc-year { font-size: 11px; fill: var(--muted); text-anchor: middle; }
+.hc-year.on { fill: var(--text); font-weight: 600; }
 .hc-axis { stroke: var(--border); stroke-width: 1; }
 .hc-avg { stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 0.8; opacity: 0.6; }
 .hc-avg-label { font-weight: 400; }
-.hc-line { fill: none; stroke: var(--olive); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.hc-dot { fill: var(--card); stroke: var(--olive); stroke-width: 2; }
+.hc-line { fill: none; stroke: var(--olive); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.hc-dot { fill: var(--card); stroke: var(--olive); stroke-width: 1.5; }
 .hc-dot.best { fill: var(--gold); stroke: var(--gold); }
-.hc-rval { font-size: 9.5px; font-weight: 600; fill: var(--text); text-anchor: middle; }
+.hc-rval { font-size: 10px; font-weight: 400; fill: var(--text); text-anchor: middle; }
 .chart-legend .hc-olives-key { background: var(--olive-light); opacity: 0.55; border-radius: 3px; }
 .chart-legend .hc-oil-key { background: var(--olive-dark); border-radius: 3px; }
 .chart-legend .hc-best-key { background: var(--gold); }
 .season-card { scroll-margin-top: 64px; }
+.harvest-chart .chart-legend { font-size: 0.7rem; }
+.harvest-chart .chart-legend i { width: 8px; height: 8px; }
+.season-card .tile-grid .stat .value { font-size: 0.92rem; font-weight: 600; }
+.season-card .tile-grid .stat .label { font-size: 0.72rem; }
+.season-card .season-head { font-weight: 600; }
