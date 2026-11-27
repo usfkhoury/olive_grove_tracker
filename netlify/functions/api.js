@@ -138,7 +138,8 @@ function oilOut(page) {
     amount_kg: readNum(p['Amount kg']) || 0,
     notes: notesPlain(readRichRaw(p.Notes)),
     harvest_id: rel[0] || null,
-    vintage: readNum(p.Vintage)
+    vintage: readNum(p.Vintage),
+    soap_batch_id: readRelIds(p['Soap batch'])[0] || null
   };
 }
 // An activity logged from the Calendar links its Seasonal task; its label is the
@@ -245,6 +246,7 @@ function oilProps(data, harvestPageId) {
   // Vintage = which pressing year's oil this is (set by stock counts). Only
   // written when given, so edits that omit it keep the stored value.
   if (data.vintage != null) p.Vintage = { number: data.vintage };
+  if (data.soap_batch_id) p['Soap batch'] = { relation: [{ id: data.soap_batch_id }] };
   return p;
 }
 function parseVintage(v) {
@@ -380,15 +382,31 @@ const PAGE_ID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f
 function isPageId(s) { return typeof s === 'string' && PAGE_ID_RE.test(s); }
 
 // ---- summaries ----
-const TANAKE_KG = 15.0;
-const OIL_DENSITY = TANAKE_KG / 16.0;
+// One tanake (tin) holds 16 kg of oil; olive oil weighs 0.915 kg per litre
+// (so a tanake ≈ 17.5 L). Keep in sync with frontend/src/constants.js.
+const TANAKE_KG = 16.0;
+const OIL_DENSITY = 0.915;
 
+// Stock at home, split into cooking oil and the soap reserve. A `reserve` row
+// moves oil from cooking to the reserve (total unchanged); a `soap` row uses
+// the reserve first and takes any remainder from cooking oil.
 function oilBalance(rows) {
-  var bal = 0;
-  for (var i = 0; i < rows.length; i++) bal += rows[i].amount_kg || 0;
+  var sorted = rows.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  var cooking = 0, reserve = 0;
+  for (var i = 0; i < sorted.length; i++) {
+    var m = sorted[i], a = m.amount_kg || 0;
+    if (m.kind === 'reserve') { cooking += a; reserve -= a; }
+    else if (m.kind === 'soap') {
+      var fromReserve = Math.min(reserve, -a);
+      reserve -= fromReserve; cooking += a + fromReserve;
+    } else cooking += a;
+  }
+  var r2 = (n) => Math.round(n * 100) / 100, bal = cooking + reserve;
   return {
-    balance_kg: Math.round(bal * 100) / 100,
-    balance_tanake: Math.round((bal / TANAKE_KG) * 100) / 100,
+    balance_kg: r2(bal),
+    cooking_kg: r2(cooking),
+    soap_reserve_kg: r2(reserve),
+    balance_tanake: r2(bal / TANAKE_KG),
     balance_liters: Math.round((bal / OIL_DENSITY) * 10) / 10
   };
 }
@@ -709,8 +727,8 @@ async function handleChecks(method, parts, event) {
   return json(405, { detail: 'method not allowed' });
 }
 
-const OUT_KINDS = { gift: 1, home: 1, sale: 1 };
-const VALID_KINDS = { gift: 1, home: 1, sale: 1, adjustment: 1 };
+const OUT_KINDS = { gift: 1, home: 1, sale: 1, soap: 1, reserve: 1 };
+const VALID_KINDS = { gift: 1, home: 1, sale: 1, adjustment: 1, soap: 1, reserve: 1 };
 // Outflows are stored negative whatever sign was typed; adjustments keep theirs.
 function signedAmount(kind, amount) {
   var a = Number(amount);
@@ -730,7 +748,7 @@ async function handleOil(method, parts, event) {
         var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
         if (!VALID_KINDS[body.kind]) return json(422, { detail: 'Invalid kind' });
         var amount = signedAmount(body.kind, body.amount_kg);
-        var payload = { date: body.date, kind: body.kind, amount_kg: amount, notes: body.notes || '', vintage: parseVintage(body.vintage) };
+        var payload = { date: body.date, kind: body.kind, amount_kg: amount, notes: body.notes || '', vintage: parseVintage(body.vintage), soap_batch_id: isPageId(body.soap_batch_id) ? body.soap_batch_id : null };
         var page = await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(payload, null) });
         return json(201, oilOut(page));
       }
@@ -746,7 +764,8 @@ async function handleOil(method, parts, event) {
         var cur = await notion.pages.retrieve({ page_id: pid });
         if (readSelect((cur.properties || {}).Kind) === 'press') return json(400, { detail: 'Press movements are managed via harvests' });
       } catch (e) { return json(404, { detail: 'Movement not found' }); }
-      var pl = { date: b3.date, kind: b3.kind, amount_kg: signedAmount(b3.kind, b3.amount_kg), notes: b3.notes || '' };
+      var pl = { date: b3.date, kind: b3.kind, amount_kg: signedAmount(b3.kind, b3.amount_kg), notes: b3.notes || '',
+        vintage: parseVintage(b3.vintage), soap_batch_id: isPageId(b3.soap_batch_id) ? b3.soap_batch_id : null };
       var up = await notion.pages.update({ page_id: pid, properties: oilProps(pl, null) });
       return json(200, oilOut(up));
     }
@@ -796,6 +815,19 @@ async function handleTasks(method, parts, event) {
 }
 
 // Task status (due / done / coming up) is computed in the browser, in local time.
+// Soap batches from the soap app, found through the "Soap batch" relation on
+// Oil movements (no extra env var). [] when the relation isn't set up.
+async function handleSoapBatches() {
+  var db = await notion.databases.retrieve({ database_id: DB.oil });
+  var rel = ((db.properties || {})['Soap batch'] || {}).relation;
+  if (!rel || !rel.database_id) return json(200, []);
+  var pages = await queryAll(rel.database_id, undefined, [{ property: 'Date', direction: 'descending' }]);
+  return json(200, pages.map((pg) => {
+    var p = pg.properties || {};
+    return { id: pg.id, name: readTitle(p.Name), date: readDate(p.Date) || '', oil_g: readNum(p['Oil (g)']), status: ((p.Status && (p.Status.select || p.Status.status)) || {}).name || '' };
+  }));
+}
+
 async function handleDashboard() {
   var pg = await loadPages(['trees', 'harvests', 'oil', 'tasks', 'activities']);
   var trees = pg.trees.map(treeOut);
@@ -890,6 +922,7 @@ exports.handler = async (event) => {
     if (head === 'tasks') return await handleTasks(method, parts, event);
     if (head === 'checks') return await handleChecks(method, parts, event);
     if (head === 'dashboard' && method === 'GET') return await handleDashboard();
+    if (head === 'soap' && parts[1] === 'batches' && method === 'GET') return await handleSoapBatches();
     if (head === 'export' && method === 'GET') return await handleExport(parts);
     if (head === 'auth') return await handleAuth(method, parts, event);
     return json(404, { detail: 'not found' });
@@ -899,4 +932,4 @@ exports.handler = async (event) => {
 };
 
 // Pure helpers, exported for tests/api.test.js only.
-exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps, planPressSync, checkProps, oilProps, oilOut, parseVintage };
+exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps, planPressSync, checkProps, oilProps, oilOut, parseVintage, oilBalance };

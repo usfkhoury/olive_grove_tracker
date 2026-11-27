@@ -2,127 +2,135 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
 import useCollection from '../useCollection.js';
-import OilForm from '../components/OilForm.jsx';
+import Info from '../components/Info.jsx';
 import SeasonFlow from '../components/SeasonFlow.jsx';
-import StockCount from '../components/StockCount.jsx';
-import {
-  lastOutflow, stockByVintage, toLiters, toTanake,
-} from '../lib/oil.js';
+import StockPanel from '../components/StockPanel.jsx';
+import { SOAP_BATCH_KG } from '../constants.js';
+import { lastOutflow, toLiters, toTanake, unitText, vintageFlows } from '../lib/oil.js';
 
 const KIND_LABELS = {
   press: '🫒 Pressed',
   gift: '🎁 Gift',
   home: '🏠 Home use',
   sale: '💰 Sale',
+  soap: '🧼 Made soap',
+  reserve: '🧼 To soap reserve',
   adjustment: '⚖️ Adjustment',
 };
+const UNITS = [['B', 'Bottles'], ['L', 'Litres'], ['T', 'Tanake']];
+const r1 = (n) => Math.round(n * 10) / 10;
 
-const EMPTY = () => ({ date: today(), kind: 'home', amount_kg: '', notes: '' });
-
-// Presses come in as kg (from Harvest); stock and outflows are counted in the
-// 1 / 2.75 / 3 L bottles the oil is stored in. Everything is saved as kg.
+// Presses come in as kg (from Harvest). Everything else goes through one
+// "Update stock" panel: oil out, soap made, or a count. Saved as kg.
 export default function Oil() {
-  const [summary, setSummary] = useState(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [counting, setCounting] = useState(false);
+  const [unit, setUnit] = useState(() => localStorage.getItem('oilUnit') || 'B');
+  const [panel, setPanel] = useState(null); // null | 'new' | movement being edited
+  const [batches, setBatches] = useState([]);
   const { isOwner } = useAuth();
+  const { items: movements, error, create, update, remove, saving, saved } = useCollection('/oil/movements');
 
-  const refreshSummary = () =>
-    api.get('/oil/summary').then(setSummary).catch(() => {});
-  const { items: movements, error, create, update, remove, saving, saved } =
-    useCollection('/oil/movements', { onChange: refreshSummary });
+  useEffect(() => { api.get('/soap/batches').then(setBatches).catch(() => {}); }, []);
+  const pickUnit = (u) => { setUnit(u); try { localStorage.setItem('oilUnit', u); } catch { /* private mode */ } };
 
-  useEffect(() => { refreshSummary(); }, []);
-
-  const onDelete = async (id) => {
-    if (confirm('Delete this movement?') && await remove(id)) setEditingId(null);
-  };
-
-  const vintages = stockByVintage(movements);
+  const flows = vintageFlows(movements);
+  const cooking = flows.reduce((a, r) => a + r.stock, 0);
+  const reserve = flows.reduce((a, r) => a + r.reserve, 0);
+  const vintages = flows.filter((r) => r.stock > 0.05).sort((a, b) => a.year - b.year);
+  const reserveBy = flows.filter((r) => r.reserve > 0.05).sort((a, b) => a.year - b.year);
+  const soapTracked = reserve > 0.05 || movements.some((m) => m.kind === 'soap' || m.kind === 'reserve');
   const lastOut = lastOutflow(movements);
   const staleDays = lastOut ? Math.round((new Date(today()) - new Date(lastOut)) / 864e5) : null;
-  // One entry per counted year; stop at the first failure (shown by the form).
-  const saveCount = async (entries) => {
+
+  // Several entries (a count) are saved one by one; stop at the first failure.
+  const createAll = async (entries) => {
     for (const entry of entries) {
-      if (!(await create(entry))) throw new Error(`Saving the ${entry.vintage} correction failed — check Movements before retrying.`);
+      if (!(await create(entry))) throw new Error('Saving failed. Check Movements below before retrying.');
     }
-    setCounting(false);
+    setPanel(null);
+  };
+  const updateOne = async (body) => {
+    if (!(await update(panel.id, body))) throw new Error('Saving failed.');
+    setPanel(null);
+  };
+  const onDelete = async () => {
+    if (confirm('Delete this movement?') && await remove(panel.id)) setPanel(null);
   };
 
   return (
     <>
-      <h1>Oil Ledger</h1>
+      <div className="oil-head">
+        <h1>Oil Ledger</h1>
+        <span className="seg" role="group" aria-label="Unit">
+          {UNITS.map(([u, label]) => (
+            <button key={u} type="button" className={`chip ${unit === u ? 'on' : ''}`} onClick={() => pickUnit(u)}>{label}</button>
+          ))}
+        </span>
+      </div>
       {error && <p className="error">{error}</p>}
       {saved && <p className="saved">Saved ✓</p>}
 
-      {summary && (
-        <div className="card">
-          <div className="stat-big">{summary.balance_liters} L</div>
-          <div className="sub">in stock ≈ {summary.balance_kg} kg · {summary.balance_tanake} tanake (by the ledger)</div>
-          {vintages.length > 0 && (
-            <div style={{ marginTop: 8 }}>
-              {vintages.map((v, i) => (
-                <span className={`chip ${i === 0 && vintages.length > 1 ? 'gold' : ''}`} key={v.year}>
-                  {v.year}: {toLiters(v.kg)} L{i === 0 && vintages.length > 1 ? ' — use first' : ''}
-                </span>
-              ))}
+      <div className="card">
+        <div className="stat-big">{unitText(cooking, unit)}</div>
+        <div className="sub">cooking oil at home · {r1(cooking)} kg (by the ledger)</div>
+        {vintages.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            {vintages.map((v, i) => (
+              <span className={`chip ${i === 0 && vintages.length > 1 ? 'gold' : ''}`} key={v.year}>
+                {v.year}: {unitText(v.stock, unit).replace('≈ ', '')}{i === 0 && vintages.length > 1 ? ' · use first' : ''}
+              </span>
+            ))}
+          </div>
+        )}
+        {soapTracked && (
+          <div className="reserve">
+            <div className="reserve-top">
+              <span>🧼 Soap reserve <Info term="soapReserve" /></span>
+              <b>{r1(reserve)} kg <span className="sub">of {SOAP_BATCH_KG} kg for a batch</span></b>
             </div>
-          )}
-          {(staleDays == null || staleDays > 90) && (
-            <p className="sub" style={{ marginTop: 8 }}>
-              ⚠ No oil used or given has been logged {lastOut ? `since ${fmtDate(lastOut)}` : 'yet'}, so this number is probably too high.
-              Count the bottles and tap <b>Count stock</b>.
-            </p>
-          )}
-          {isOwner && !counting && (
-            <button className="secondary small" style={{ marginTop: 8 }} onClick={() => setCounting(true)}>Count stock</button>
-          )}
-          {isOwner && counting && (
-            <StockCount movements={movements} saving={saving} onSave={saveCount} onCancel={() => setCounting(false)} />
-          )}
-        </div>
-      )}
+            <div className="reserve-bar"><span style={{ width: `${Math.min(100, (reserve / SOAP_BATCH_KG) * 100)}%` }} /></div>
+            {reserveBy.length > 0 && (
+              <div className="sub">{reserveBy.map((r) => `from ${r.year}: ${r1(r.reserve)} kg`).join(' · ')}</div>
+            )}
+          </div>
+        )}
+        {(staleDays == null || staleDays > 90) && (
+          <p className="sub" style={{ marginTop: 8 }}>
+            ⚠ No oil used or given has been logged {lastOut ? `since ${fmtDate(lastOut)}` : 'yet'}, so this is probably too high.
+            Tap <b>Update stock → Count</b>.
+          </p>
+        )}
+        {isOwner && panel !== 'new' && (
+          <button className="update-btn" onClick={() => setPanel('new')}>Update stock</button>
+        )}
+        {isOwner && panel === 'new' && (
+          <StockPanel movements={movements} batches={batches} unit={unit} saving={saving}
+            onCreate={createAll} onClose={() => setPanel(null)} />
+        )}
+      </div>
 
-      {isOwner && (
-        <button className="add-toggle" onClick={() => setShowAdd(!showAdd)} style={{ marginTop: 12 }}>
-          {showAdd ? 'Cancel' : '+ Record oil out'}
-        </button>
-      )}
-
-      {isOwner && showAdd && (
-        <OilForm initial={EMPTY()} saving={saving} submitLabel="Save"
-          onSave={async (b) => { if (await create(b)) setShowAdd(false); }} />
-      )}
-
-      <SeasonFlow movements={movements} />
+      <SeasonFlow movements={movements} unit={unit} />
 
       <h2>Movements</h2>
       <div className="card">
-        {movements.map((m) => (editingId === m.id ? (
-          <OilForm key={m.id} saving={saving} submitLabel="Save changes"
-            initial={{ date: m.date, kind: m.kind, amount_kg: String(m.kind === 'adjustment' ? m.amount_kg : Math.abs(m.amount_kg)), notes: m.notes || '' }}
-            onSave={async (b) => { if (await update(m.id, b)) setEditingId(null); }}
-            onCancel={() => setEditingId(null)} onDelete={() => onDelete(m.id)} />
+        {movements.map((m) => (panel && panel !== 'new' && panel.id === m.id ? (
+          <StockPanel key={m.id} movements={movements} batches={batches} unit={unit} saving={saving} editing={m}
+            onUpdate={updateOne} onDelete={onDelete} onClose={() => setPanel(null)} />
         ) : (
           <div className="item" key={m.id}>
             <div>
               <div className="title">{KIND_LABELS[m.kind] || m.kind}</div>
-              <div className="sub">{fmtDate(m.date)}{m.kind === 'press' ? ' · from Harvest' : ''}</div>
-              {m.notes && (
-                <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>
-                  {m.notes}
-                </div>
-              )}
+              <div className="sub">
+                {fmtDate(m.date)}{m.kind === 'press' ? ' · from Harvest' : ''}{m.vintage ? ` · ${m.vintage} oil` : ''}
+              </div>
+              {m.notes && <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>{m.notes}</div>}
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span className={`amount ${m.amount_kg >= 0 ? 'in' : 'out'}`}>
-                {m.amount_kg >= 0 ? '+' : ''}{m.amount_kg} kg
+              <span className={`amount ${m.kind === 'reserve' ? 'move' : m.amount_kg >= 0 ? 'in' : 'out'}`}>
+                {m.kind === 'reserve' ? `→ ${Math.abs(m.amount_kg)}` : `${m.amount_kg >= 0 ? '+' : ''}${m.amount_kg}`} kg
               </span>
               <div className="sub">{toLiters(Math.abs(m.amount_kg))} L · {toTanake(Math.abs(m.amount_kg))} T</div>
-              {m.vintage && <div className="sub">{m.vintage} oil</div>}
               {isOwner && m.kind !== 'press' && (
-                <div><button className="secondary small" onClick={() => setEditingId(m.id)}>edit</button></div>
+                <div><button className="secondary small" onClick={() => setPanel(m)}>edit</button></div>
               )}
             </div>
           </div>

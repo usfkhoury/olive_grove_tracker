@@ -7,16 +7,13 @@ export const toTanake = (kg) => Math.round((kg / TANAKE_KG) * 10) / 10;
 export const toLiters = (kg) => Math.round(kg / KG_PER_L);
 export const litersToKg = (l) => r2(l * KG_PER_L);
 
-// counts: { 1: n, 2.75: n, 3: n } (strings ok); tanake = full tins not yet bottled.
+// counts: { 1: n, 2.75: n, 3: n } (strings ok); tanake = full 16 kg tins.
 export function bottlesToLiters(counts, tanake = 0) {
   const bottled = BOTTLE_SIZES.reduce((a, size) => a + size * (Number(counts[size]) || 0), 0);
   return r2(bottled + (Number(tanake) || 0) * TANAKE_L);
 }
 
-// kg to record so the ledger matches a physical count (in litres).
-export const reconcileAmount = (countLiters, balanceKg) => r2(countLiters * KG_PER_L - balanceKg);
-
-// Oil left per pressing year, oldest first (see vintageFlows for the rules).
+// Cooking oil left per pressing year, oldest first (see vintageFlows).
 export function stockByVintage(movements) {
   return vintageFlows(movements).filter((r) => r.stock > 0.05)
     .map((r) => ({ year: r.year, kg: r.stock })).sort((a, b) => a.year - b.year);
@@ -24,7 +21,7 @@ export function stockByVintage(movements) {
 
 // Date of the most recent oil that left the stock (null if never logged).
 export function lastOutflow(movements) {
-  const out = movements.filter((m) => m.amount_kg < 0).map((m) => m.date).sort();
+  const out = movements.filter((m) => m.amount_kg < 0 && m.kind !== 'reserve').map((m) => m.date).sort();
   return out.length ? out[out.length - 1] : null;
 }
 
@@ -37,16 +34,32 @@ export function inUnit(kg, unit) {
   return Math.round(l);
 }
 
-// Per pressing year, where its oil went (kg). A movement tagged with a
-// vintage (from a stock count) applies to that year's oil; untagged outflows
-// drain the oldest oil first. For every year:
-//   pressed + added = home + gift + sale + lost + stock
-// added/lost = positive/negative stock adjustments. Newest year first.
+// Per pressing year, where its oil went (kg). For every year:
+//   pressed + added = home + gift + sale + lost + soap + reserve + stock
+// stock = cooking oil left, reserve = set aside for soap (both still at home).
+// A movement tagged with a vintage applies to that year's oil first; the rest
+// (and untagged movements) drain the oldest oil. `reserve` moves cooking oil
+// into the soap reserve of the same year; `soap` uses the reserve, then
+// cooking oil. Newest year first.
 export function vintageFlows(movements) {
   const lots = new Map();
   const lot = (year) => {
-    if (!lots.has(year)) lots.set(year, { year, pressed: 0, added: 0, home: 0, gift: 0, sale: 0, lost: 0, stock: 0 });
+    if (!lots.has(year)) {
+      lots.set(year, { year, pressed: 0, added: 0, home: 0, gift: 0, sale: 0, lost: 0, soap: 0, reserve: 0, stock: 0 });
+    }
     return lots.get(year);
+  };
+  // Move up to `need` kg from field `from` to field `into`, preferred year first.
+  const drain = (from, into, need, vintage) => {
+    const order = [...lots.values()].sort((a, b) => a.year - b.year);
+    if (vintage && lots.has(vintage)) order.unshift(lots.get(vintage));
+    for (const l of order) {
+      if (need <= 1e-9) break;
+      const take = Math.min(l[from], need);
+      if (take <= 0) continue;
+      l[from] -= take; l[into] += take; need -= take;
+    }
+    return need;
   };
   for (const m of [...movements].sort((a, b) => a.date.localeCompare(b.date))) {
     const year = Number(m.date.slice(0, 4));
@@ -56,33 +69,44 @@ export function vintageFlows(movements) {
       l.stock += m.amount_kg;
       continue;
     }
-    const key = m.kind === 'adjustment' ? 'lost' : m.kind;
-    let need = -m.amount_kg;
-    const order = [...lots.values()].sort((a, b) => a.year - b.year);
-    if (m.vintage && lots.has(m.vintage)) order.unshift(lots.get(m.vintage)); // its own year first
-    for (const l of order) {
-      if (need <= 0) break;
-      const take = Math.min(l.stock, need);
-      if (take <= 0) continue;
-      l.stock -= take; l[key] += take; need -= take;
-    }
+    const need = -m.amount_kg;
+    if (m.kind === 'reserve') drain('stock', 'reserve', need, m.vintage);
+    else if (m.kind === 'soap') drain('stock', 'soap', drain('reserve', 'soap', need, m.vintage), m.vintage);
+    else drain('stock', ['home', 'gift', 'sale'].includes(m.kind) ? m.kind : 'lost', need, m.vintage);
   }
   return [...lots.values()]
     .map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) => [k, k === 'year' ? v : r2(v)])))
     .sort((a, b) => b.year - a.year);
 }
 
-// Stock count per vintage → ledger entries. `counted` = { year: litres };
-// `reason` = what an unexplained shortfall was: 'home' | 'gift' | 'adjustment'
-// (lost). A surplus is always a + adjustment. Years within 0.05 kg are skipped.
+// Stock count → ledger entries. `counted` = { [year]: litres, reserve?: litres }.
+// A year's shortfall is recorded as `reason` ('home' | 'gift' | 'adjustment'
+// = lost), a surplus as a + adjustment, both tagged with the vintage. The soap
+// reserve: less than the ledger = soap made; more = cooking oil moved into it.
+// Differences under 0.05 kg are skipped.
 export function countPlan(flows, counted, reason, date) {
   const out = [];
-  for (const [y, litres] of Object.entries(counted)) {
-    const year = Number(y);
-    const ledger = flows.find((r) => r.year === year)?.stock || 0;
+  for (const [key, litres] of Object.entries(counted)) {
+    const isReserve = key === 'reserve';
+    const ledger = isReserve
+      ? flows.reduce((a, r) => a + (r.reserve || 0), 0)
+      : flows.find((r) => r.year === Number(key))?.stock || 0;
     const diff = r2(Number(litres) * KG_PER_L - ledger);
     if (Math.abs(diff) < 0.05) continue;
-    out.push({ date, kind: diff < 0 ? reason : 'adjustment', amount_kg: diff, vintage: year });
+    if (isReserve) out.push({ date, kind: diff < 0 ? 'soap' : 'reserve', amount_kg: -Math.abs(diff) });
+    else out.push({ date, kind: diff < 0 ? reason : 'adjustment', amount_kg: diff, vintage: Number(key) });
   }
   return out;
+}
+
+// Amount picker value { 2.75: n, 1: n, 3: n, T: tins, L: loose litres } → litres.
+export function amountLitres(v) {
+  return r2(bottlesToLiters(v, v.T) + (Number(v.L) || 0));
+}
+
+// kg as display text in the chosen unit ('B' bottles, 'L' litres, 'T' tanake).
+export function unitText(kg, unit) {
+  const n = inUnit(kg, unit);
+  if (unit === 'B') return `≈ ${n} bottle${n === 1 ? '' : 's'}`;
+  return unit === 'T' ? `${n} tanake` : `${n} L`;
 }

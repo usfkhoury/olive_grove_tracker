@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { TANAKE_KG } from '../constants.js';
 import PressTreePicker from './PressTreePicker.jsx';
 
-const tanakeFrom = (oil) => (oil ? String(Math.round((Number(oil) / 15) * 10) / 10) : '');
+const tanakeFrom = (oil) => (oil ? String(Math.round((Number(oil) / TANAKE_KG) * 100) / 100) : '');
 
 const shortDate = (iso) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -57,8 +58,8 @@ export default function HarvestForm({
         </label>
       </div>
       <label className="field">
-        Tanake — estimated from oil weight (16L ≈ 15kg), edit if different
-        <input type="number" step="0.1" min="0" value={form.tanake}
+        Tanake — from the oil weight (1 tanake = 16 kg)
+        <input type="number" step="any" min="0" value={form.tanake}
           onChange={(e) => { setTanakeEdited(true); setForm({ ...form, tanake: e.target.value }); }} />
       </label>
       {trees.length > 0 && (

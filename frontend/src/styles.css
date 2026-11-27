@@ -544,8 +544,6 @@ header.topbar .brand {
 .note-dot { position: absolute; top: 3px; right: -1px; }
 @media (max-width: 420px) { .sheet select, .sheet input { font-size: 0.78rem; } .sheet select { padding: 6px 3px; } }
 /* Oil: where each season's oil went */
-.flow-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 20px; }
-.flow-head h2 { margin: 0; }
 .flow-row { padding: 8px 0; border-top: 1px solid var(--hairline); }
 .flow-row:first-child { border-top: 0; padding-top: 2px; }
 .flow-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85rem; margin-bottom: 5px; }
@@ -561,14 +559,51 @@ header.topbar .brand {
 .flow-parts span { display: inline-flex; align-items: center; gap: 4px; }
 .flow-key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
 .flow-note { color: var(--muted); font-size: 0.72rem; margin: 8px 0 0; }
-/* Bottle inputs: 2.75 L is the main box */
-.bottle-row.main span { font-weight: 600; }
-.bottle-row.main .bottle-num { font-size: 1.05rem; font-weight: 600; }
 .link-btn { background: none; border: 0; padding: 6px 0; color: var(--olive); font: inherit; font-size: 0.82rem; cursor: pointer; }
-/* Oil: count stock per vintage */
-.stock-count { margin-top: 8px; }
+/* Oil: Update stock → Count rows */
 .count-year { border: 1px solid var(--hairline); border-radius: 10px; padding: 6px 10px 8px; margin: 8px 0; }
 .count-year legend { font-weight: 700; padding: 0 4px; }
 .count-year legend .sub { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
 .count-result { font-size: 0.82rem; margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: var(--olive-pale); }
 .count-result.short { background: #f6ecd2; }
+.count-year.untouched { opacity: 0.75; }
+.count-result.ok { background: var(--olive-pale); }
+
+/* Oil page header with the unit switch */
+.oil-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.oil-head h1 { margin: 0; }
+.update-btn { width: 100%; margin-top: 12px; }
+
+/* Soap reserve on the stock card */
+.reserve { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hairline); font-size: 0.88rem; }
+.reserve-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.reserve-bar { height: 8px; border-radius: 4px; background: var(--olive-pale); overflow: hidden; margin-bottom: 4px; }
+.reserve-bar span { display: block; height: 100%; background: #8a6fa8; border-radius: 4px; }
+.flow-seg.soap, .flow-key.soap { background: #8a6fa8; }
+.flow-seg.reserve, .flow-key.reserve { background: repeating-linear-gradient(45deg, #8a6fa8 0 3px, #d9cfe6 3px 6px); }
+.amount.move { color: #8a6fa8; }
+
+/* Update stock panel */
+.stock-panel { margin-top: 12px; }
+.stock-panel .tabs { display: flex; margin-bottom: 10px; }
+.stock-panel .tabs .chip { flex: 1; justify-content: center; text-align: center; padding: 8px 4px; }
+.stock-panel form > .field:not(label) { margin: 10px 0 4px; }
+.chip-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-pick .chip { border: 0; cursor: pointer; padding: 7px 12px; }
+.chip-pick .chip.on, .stock-panel .chip.on { background: var(--olive); color: #fff; }
+.amount { margin: 10px 0 4px; }
+.amount-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; }
+.amount-row.main span { font-weight: 600; }
+.amount-total { font-size: 0.8rem; color: var(--muted); }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden; }
+.stepper button { width: 40px; height: 40px; border: 0; border-radius: 0; margin: 0; padding: 0; font-size: 1.3rem; line-height: 1;
+  background: var(--olive-pale); color: var(--olive-dark); }
+.stepper button:disabled { opacity: 0.35; }
+.stepper input { width: 3.4em; height: 40px; border: 0; border-radius: 0; text-align: center; font-weight: 600; font-size: 1rem; padding: 0; -moz-appearance: textfield; }
+.stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.preview { font-size: 0.85rem; background: var(--olive-pale); border-radius: 8px; padding: 8px 10px; margin: 10px 0; }
+.preview .warn { color: var(--danger); }
+.panel-foot { display: flex; gap: 8px; margin-top: 8px; }
+.panel-foot .secondary, .panel-foot .danger { flex: 1; }
+.stock-panel button[type=submit] { width: 100%; margin-top: 6px; }
+.amount-total { margin-bottom: 6px; }

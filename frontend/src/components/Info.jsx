@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { GLOSSARY } from '../constants.js';
 
 const TITLES = {
-  ratio: 'Ratio', tanake: 'Tanake', ripeness: 'Ripeness (Jaén 0–7)', sacks: 'Sacks', adjustment: 'Stock adjustment',
+  ratio: 'Ratio', tanake: 'Tanake', ripeness: 'Ripeness (Jaén 0–7)', sacks: 'Sacks', adjustment: 'Stock adjustment', soapReserve: 'Soap reserve',
 };
 const W = 270; // popover width, px
 

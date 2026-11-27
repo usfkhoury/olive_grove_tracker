@@ -37,6 +37,22 @@ used by the app — values kept, never written.) Season is parsed from the Name 
 property. API: `GET/POST /checks` (`?tree_id=`, `?season=`), `PUT/DELETE
 /checks/:id`; one check per tree per season (409 on duplicate).
 
+Oil movements: Kind (`press` / `home` / `gift` / `sale` / `soap` / `reserve` /
+`adjustment`), Amount kg (signed; out-kinds stored negative), optional
+**Vintage** (pressing year the oil belongs to; set by the Update stock panel),
+optional **Soap batch** relation → the soap app's Soap Batches DB.
+`reserve` moves cooking oil into the soap reserve (total stock unchanged);
+`soap` uses the reserve first, then cooking oil. `GET /oil/summary` returns
+`balance_kg`, `cooking_kg`, `soap_reserve_kg`. `GET /soap/batches` lists the
+soap app's batches, found through the Soap batch relation (no env var).
+Per-year breakdown (`vintageFlows`, `frontend/src/lib/oil.js`): tagged
+movements hit their vintage first, untagged ones the oldest oil.
+
+**Units:** 1 tanake = 16 kg of oil; olive oil = 0.915 kg/L (tanake ≈ 17.5 L);
+standard bottle 2.75 L. Constants live in `frontend/src/constants.js` and the
+top of the summaries section in `netlify/functions/api.js` — keep them equal.
+Harvest oil kg are weighed; Harvest Tanake = oil kg ÷ 16.
+
 ### Hard invariants — do not break
 
 1. **Row id = Notion page uuid.** Legacy `[sqlite:<table>#<n>]` markers were

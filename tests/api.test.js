@@ -89,3 +89,27 @@ test('parseVintage: a year or null', () => {
   assert.equal(I.parseVintage('abc'), null);
   assert.equal(I.parseVintage(1500), null);
 });
+
+test('oilBalance: 16 kg tanake at 0.915 kg/L; reserve moves are transfers; soap drains the reserve first', () => {
+  const rows = [
+    { date: '2025-11-02', kind: 'press', amount_kg: 100 },
+    { date: '2026-01-10', kind: 'reserve', amount_kg: -20 },  // cooking → soap reserve
+    { date: '2026-06-20', kind: 'soap', amount_kg: -16 },     // from the reserve
+    { date: '2026-07-01', kind: 'soap', amount_kg: -10 },     // 4 from reserve, 6 from cooking
+    { date: '2026-08-01', kind: 'home', amount_kg: -5 },
+  ];
+  assert.deepEqual(I.oilBalance(rows), {
+    balance_kg: 69, cooking_kg: 69, soap_reserve_kg: 0,
+    balance_tanake: 4.31, balance_liters: 75.4,
+  });
+  assert.equal(I.oilBalance(rows.slice(0, 2)).soap_reserve_kg, 20);
+  assert.equal(I.oilBalance(rows.slice(0, 2)).cooking_kg, 80);
+  assert.equal(I.oilBalance(rows.slice(0, 2)).balance_kg, 100);
+});
+test('soap and reserve are out-kinds; oilProps links a soap batch', () => {
+  assert.equal(I.signedAmount('soap', 16), -16);
+  assert.equal(I.signedAmount('reserve', 5), -5);
+  const p = I.oilProps({ date: '2026-06-20', kind: 'soap', amount_kg: -16, notes: '', soap_batch_id: 'abc' }, null);
+  assert.deepEqual(p['Soap batch'], { relation: [{ id: 'abc' }] });
+  assert.equal('Soap batch' in I.oilProps({ date: '2026-06-20', kind: 'home', amount_kg: -1, notes: '' }, null), false);
+});
