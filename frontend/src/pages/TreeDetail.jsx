@@ -67,22 +67,24 @@ export default function TreeDetail() {
 
   return (
     <>
-      <Link to={mapUrl}>🗺 Grove map</Link>
-      <MiniMap trees={all} currentId={id} />
       <div className="tree-nav">
-        {prev ? <Link to={`/trees/${prev.id}`}>← {prev.label}</Link> : <Link to={mapUrl}>← Map</Link>}
+        {prev
+          ? <Link className="tree-step" to={`/trees/${prev.id}`} aria-label={`Previous tree ${prev.label}`}>← {prev.label}</Link>
+          : <span className="tree-step off" aria-hidden="true">←</span>}
         <h1>🌳 {tree.label}</h1>
-        {next ? <Link to={`/trees/${next.id}`}>{next.label} →</Link> : <Link to={mapUrl}>Map →</Link>}
+        {next
+          ? <Link className="tree-step" to={`/trees/${next.id}`} aria-label={`Next tree ${next.label}`}>{next.label} →</Link>
+          : <span className="tree-step off" aria-hidden="true">→</span>}
       </div>
+      <MiniMap trees={all} current={tree} mapUrl={mapUrl} />
       {error && <p className="error">{error}</p>}
       {saved && <p className="saved">Saved ✓</p>}
 
       <div className="card">
         <div className="sub">
-          Terrace {tree.row}, position {tree.col}
-          {tree.variety ? ` · ${tree.variety}` : ' · variety not set'}
-          {tree.planted_year ? ` · planted ${tree.planted_year}` : ''}
-          {tree.status !== 'active' ? ' · removed' : ''}
+          {[tree.variety || 'Variety not set',
+            tree.planted_year && `planted ${tree.planted_year}`,
+            tree.status !== 'active' && 'removed'].filter(Boolean).join(' · ')}
         </div>
         {tree.notes && <div style={{ whiteSpace: 'pre-line', marginTop: 6 }}>{tree.notes}</div>}
         {isOwner && !editing && (
