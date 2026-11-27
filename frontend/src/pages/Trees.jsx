@@ -170,13 +170,16 @@ export default function Trees() {
           {seasonOptions.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
         {view === 'map' && (
-          <select value={colorBy} onChange={(e) => setColorBy(e.target.value)}>
-            <option value="">Colour: none</option>
-            <option value="press">Which press</option>
-            <option value="ripeness">Ripeness</option>
-            <option value="sacks">Sacks</option>
-            <option value="pruning_planned">Pruning planned</option>
-          </select>
+          <label className="inline-label">
+            Group by
+            <select value={colorBy} onChange={(e) => setColorBy(e.target.value)}>
+              <option value="">—</option>
+              <option value="press">Press</option>
+              <option value="ripeness">Ripeness</option>
+              <option value="sacks">Sacks</option>
+              <option value="pruning_planned">Pruning planned</option>
+            </select>
+          </label>
         )}
         {isOwner && view === 'map' && (
           <button className={`chip select-toggle ${selecting ? 'on' : ''}`}
