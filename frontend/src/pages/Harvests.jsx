@@ -4,8 +4,9 @@ import api, { today } from '../api.js';
 import HarvestChart from '../components/HarvestChart.jsx';
 import HarvestForm from '../components/HarvestForm.jsx';
 import useCollection from '../useCollection.js';
+import { pressSackStats, treeRanges } from '../lib/sheet.js';
 
-const EMPTY = () => ({ date: today(), olives_kg: '', oil_kg: '', tanake: '', notes: '' });
+const EMPTY = () => ({ date: today(), olives_kg: '', oil_kg: '', tanake: '', notes: '', tree_ids: [] });
 
 const shortDate = (iso) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -14,7 +15,8 @@ const sessionRatio = (h) =>
   h.oil_kg ? Math.round((h.olives_kg / h.oil_kg) * 10) / 10 : null;
 
 // Harvest form values are strings; the API row has numbers.
-const toForm = (h) => ({
+const toForm = (h, treeIds) => ({
+  tree_ids: treeIds,
   date: h.date,
   olives_kg: String(h.olives_kg),
   oil_kg: String(h.oil_kg),
@@ -29,12 +31,25 @@ export default function Harvests() {
   const [openYears, setOpenYears] = useState(null); // null = newest season open
   const { isOwner } = useAuth();
 
-  const refreshSeasons = () =>
+  const [trees, setTrees] = useState([]);
+  const [checks, setChecks] = useState(null); // null until loaded
+  // Season totals and per-tree press links both change when a press is saved.
+  const refresh = () => {
     api.get('/harvests/seasons').then(setSeasons).catch(() => {});
+    api.get('/checks').then(setChecks).catch(() => {});
+  };
   const { items: harvests, error, create, update, remove, saving, saved } =
-    useCollection('/harvests', { onChange: refreshSeasons });
+    useCollection('/harvests', { onChange: refresh });
 
-  useEffect(() => { refreshSeasons(); }, []);
+  useEffect(() => {
+    refresh();
+    api.get('/trees').then(setTrees).catch(() => {});
+  }, []);
+
+  const treesOf = (h) => (checks || []).filter((c) => c.press_id === h.id);
+  const sackStats = pressSackStats(checks || [], harvests);
+  // The picker only appears once trees + checks are loaded (see HarvestForm).
+  const formProps = { trees: checks ? trees : [], checks: checks || [], harvests };
 
   const add = async (body) => { if (await create(body)) setShowAdd(false); };
   const save = async (id, body) => { if (await update(id, body)) setEditingId(null); };
@@ -83,7 +98,7 @@ export default function Harvests() {
       )}
 
       {isOwner && showAdd && (
-        <HarvestForm initial={EMPTY()} saving={saving} submitLabel="Save session" onSave={add} />
+        <HarvestForm {...formProps} initial={EMPTY()} saving={saving} submitLabel="Save session" onSave={add} />
       )}
 
       <div className="card">
@@ -126,7 +141,8 @@ export default function Harvests() {
                 </div>
 
                 {byYear[y].map((h) => (editingId === h.id ? (
-                  <HarvestForm key={h.id} initial={toForm(h)} saving={saving} submitLabel="Save changes"
+                  <HarvestForm key={h.id} {...formProps} harvestId={h.id} initial={toForm(h, treesOf(h).map((c) => c.tree_id))}
+                    saving={saving} submitLabel="Save changes"
                     onSave={(b) => save(h.id, b)} onCancel={() => setEditingId(null)} onDelete={() => onDelete(h.id)} />
                 ) : (
                   <div className="session" key={h.id}>
@@ -145,6 +161,12 @@ export default function Harvests() {
                       </b>
                     </span>
                     {isOwner && <button className="secondary small" onClick={() => setEditingId(h.id)}>edit</button>}
+                    <div className="session-note">
+                      {treesOf(h).length
+                        ? `${treeRanges(treesOf(h).map((c) => c.tree_label))} · ${treesOf(h).length} trees`
+                        : 'no trees set'}
+                      {sackStats.get(h.id) && ` · ${sackStats.get(h.id).sacks} sacks · ${sackStats.get(h.id).kgPerSack} kg/sack`}
+                    </div>
                     {h.notes && <div className="session-note">{h.notes}</div>}
                   </div>
                 )))}

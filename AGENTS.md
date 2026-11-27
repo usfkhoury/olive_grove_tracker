@@ -53,6 +53,11 @@ property. API: `GET/POST /checks` (`?tree_id=`, `?season=`), `PUT/DELETE
    that relation); the browser turns them into due / done / not logged
    (`frontend/src/lib/season.js`). New harvests inherit the latest harvest's
    `Task` (= "Harvest & Pressing"), so presses tick that task automatically.
+4. **Press ↔ trees = the Tree check's `Press` relation** (one press per tree
+   per season). Harvest POST/PUT accept optional `tree_ids`; the API sets
+   `Press` on those trees' checks for the press's year (creating checks as
+   needed) and clears it on checks no longer ticked (`syncPressTrees`). Omit
+   `tree_ids` to leave the links untouched.
 
 ## Env vars (Netlify → Environment)
 

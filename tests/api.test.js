@@ -47,3 +47,24 @@ test('harvestProps writes Task only when task_id is a page id', () => {
   const id = '404c46dc-1998-8135-9f68-d17a5ccc0ead';
   assert.deepEqual(I.harvestProps({ ...base, task_id: id }).Task, { relation: [{ id }] });
 });
+
+test('planPressSync: set / clear / create for one press', () => {
+  const checks = [
+    { id: 'c1', tree_id: 't1', season: 2026, press_id: null },  // ticked, no press → set
+    { id: 'c2', tree_id: 't2', season: 2026, press_id: 'p0' },  // ticked, other press → set (moves)
+    { id: 'c3', tree_id: 't3', season: 2026, press_id: 'p1' },  // ticked, already → nothing
+    { id: 'c4', tree_id: 't4', season: 2026, press_id: 'p1' },  // unticked → clear
+    { id: 'c5', tree_id: 't5', season: 2025, press_id: 'p1' },  // wrong season (date moved) → clear
+    { id: 'c6', tree_id: 't6', season: 2026, press_id: 'p9' },  // unrelated → nothing
+  ];
+  const plan = I.planPressSync(checks, 'p1', 2026, ['t1', 't2', 't3', 't7']);
+  assert.deepEqual(plan.set.sort(), ['c1', 'c2']);
+  assert.deepEqual(plan.clear.sort(), ['c4', 'c5']);
+  assert.deepEqual(plan.create, ['t7']);
+});
+
+test('planPressSync: dashed and plain page ids compare equal', () => {
+  const checks = [{ id: 'c1', tree_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', season: 2026, press_id: 'P1' }];
+  const plan = I.planPressSync(checks, 'p1', 2026, ['aaaaaaaabbbbccccddddeeeeeeeeeeee']);
+  assert.deepEqual(plan, { set: [], clear: [], create: [] });
+});

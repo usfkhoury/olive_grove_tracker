@@ -396,8 +396,10 @@ header.topbar .brand {
 .button-link { display: inline-block; background: var(--olive); color: #fff; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 600; }
 .tree-dot.picked { outline: 3px solid var(--text); outline-offset: 1px; }
 .tree-dot.cur { outline: 3px solid var(--gold); outline-offset: 1px; }
-.tree-dot.heat { background: rgba(74, 93, 35, calc(0.15 + var(--heat) * 0.85)); color: #fff; }
-.tree-dot.nodata { opacity: 0.35; }
+.tree-dot { flex-direction: column; line-height: 1.05; }
+.tree-dot .dot-value { font-size: 0.62rem; font-weight: 600; opacity: 0.95; }
+.tree-dot.nodata { background: transparent; color: var(--muted); border: 2px dashed var(--muted); box-shadow: none; }
+.map-legend .legend-nodata { background: transparent; border: 1.5px dashed var(--muted); box-sizing: border-box; }
 .tree-dot .badge { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); border: 1px solid #fff; }
 .tree-dot { position: relative; border: 0; cursor: pointer; font-family: inherit; }
 .map-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--muted); margin: 6px 0; }
@@ -462,3 +464,15 @@ header.topbar .brand {
 .season-card .tile-grid .stat .value { font-size: 0.92rem; font-weight: 600; }
 .season-card .tile-grid .stat .label { font-size: 0.72rem; }
 .season-card .season-head { font-weight: 600; }
+/* Season sheet tab + press tree picker */
+.sheet-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin: 8px 0; }
+.press-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: 4px 0; }
+.press-row .chip { border: 0; cursor: pointer; font-family: inherit; }
+.terrace-btn { background: var(--chip-gold-bg); color: var(--chip-gold-text); font-weight: 600; }
+.tree-chip.on { background: var(--olive); color: #fff; }
+.tree-chip.taken { opacity: 0.55; }
+.tree-chip small { font-size: 0.65rem; }
+.sheet-scroll .sheet th, .sheet-scroll .sheet td { padding: 3px 2px; white-space: nowrap; }
+.sheet input, .sheet select { padding: 6px 3px; font-size: 0.85rem; width: auto; min-width: 0; }
+.sheet input { width: 3.2em; text-align: center; }
+.sheet select { max-width: none; }

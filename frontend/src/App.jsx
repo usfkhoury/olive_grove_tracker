@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import LoginModal from './components/LoginModal.jsx';
@@ -8,7 +8,6 @@ import CalendarPage from './pages/CalendarPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Harvests from './pages/Harvests.jsx';
 import Oil from './pages/Oil.jsx';
-import SeasonSheet from './pages/SeasonSheet.jsx';
 import TreeDetail from './pages/TreeDetail.jsx';
 import Trees from './pages/Trees.jsx';
 
@@ -104,7 +103,7 @@ export default function App() {
             <Route path="/harvests" element={<Harvests />} />
             <Route path="/oil" element={<Oil />} />
             <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/season" element={<SeasonSheet />} />
+            <Route path="/season" element={<Navigate to="/trees?view=sheet" replace />} />
           </Routes>
         </ErrorBoundary>
       </main>

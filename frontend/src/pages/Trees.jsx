@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
 import useCollection from '../useCollection.js';
 import MapLogForm from '../components/MapLogForm.jsx';
 import TreeSheet from '../components/TreeSheet.jsx';
-import { heat, missingFields, pressPalette } from '../lib/sheet.js';
+import SeasonSheet from '../components/SeasonSheet.jsx';
+import { mapColor, mapLegend, missingFields, pressPalette } from '../lib/sheet.js';
 import { taskStatus } from '../lib/season.js';
 
 const EMPTY = { label: '', row: 1, col: 1, variety: '', planted_year: '', notes: '' };
@@ -22,10 +23,11 @@ export default function Trees() {
   const { items: trees, error, create, saving, saved } = useCollection('/trees');
   const { isOwner } = useAuth();
   const navigate = useNavigate();
-  const focus = new URLSearchParams(useLocation().search).get('focus');
+  const params = new URLSearchParams(useLocation().search);
+  const focus = params.get('focus');
   const season = new Date().getFullYear();
 
-  const [view, setView] = useState('map');           // 'map' | 'list'
+  const [view, setView] = useState(params.get('view') === 'sheet' ? 'sheet' : 'map');
   const [colorBy, setColorBy] = useState('');
   const [openId, setOpenId] = useState(null);        // tree whose quick card is open
   const [selecting, setSelecting] = useState(false); // select-to-log mode
@@ -35,8 +37,9 @@ export default function Trees() {
   const [presses, setPresses] = useState([]);
   const [tasks, setTasks] = useState([]);
 
+  const loadChecks = () => api.get(`/checks?season=${season}`).then(setChecks).catch(() => {});
   useEffect(() => {
-    api.get(`/checks?season=${season}`).then(setChecks).catch(() => {});
+    loadChecks();
     api.get('/harvests').then((hs) => setPresses(hs.filter((h) => h.date.startsWith(String(season))))).catch(() => {});
     api.get('/tasks').then((ts) => {
       const now = today();
@@ -58,8 +61,8 @@ export default function Trees() {
     if (colorBy === 'press') return c?.press_id ? { style: { background: pressColor.get(c.press_id) } } : { cls: 'nodata' };
     if (colorBy === 'missing') return { badge: missingFields(c).length > 0 };
     if (colorBy) {
-      const h = heat(colorBy, c?.[colorBy], range);
-      return h == null ? { cls: 'nodata' } : { cls: 'heat', style: { '--heat': h } };
+      const m = mapColor(colorBy, c?.[colorBy], range);
+      return m ? { cls: 'coloured', style: { background: m.bg, color: m.fg }, value: m.label } : { cls: 'nodata' };
     }
     return {};
   };
@@ -157,7 +160,7 @@ export default function Trees() {
       <div className="map-controls">
         <span className="seg">
           <button className={`chip ${view === 'map' ? 'on' : ''}`} onClick={() => setView('map')}>Map</button>
-          <button className={`chip ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
+          <button className={`chip ${view === 'sheet' ? 'on' : ''}`} onClick={() => setView('sheet')}>Sheet</button>
         </span>
         {view === 'map' && (
           <select value={colorBy} onChange={(e) => setColorBy(e.target.value)}>
@@ -166,7 +169,6 @@ export default function Trees() {
             <option value="ripeness">Ripeness {season}</option>
             <option value="sacks">Sacks {season}</option>
             <option value="pruning_planned">Pruning planned</option>
-            <option value="canopy_density">Canopy density</option>
             <option value="missing">Missing {season} data</option>
           </select>
         )}
@@ -176,7 +178,6 @@ export default function Trees() {
             {selecting ? '☑ Selecting — tap trees' : '☐ Select to log'}
           </button>
         )}
-        <Link to="/season">Season sheet →</Link>
       </div>
 
       {view === 'map' && (
@@ -216,7 +217,8 @@ export default function Trees() {
                   ref={t.id === focus ? (el) => el && el.scrollIntoView({ inline: 'center', block: 'nearest' }) : undefined}
                   style={{ gridRow: t.row || 'auto', gridColumn: t.col || 'auto', ...(look.style || {}) }}
                   title={t.variety || t.label} onClick={() => tapTree(t)}>
-                  {t.label}
+                  <span>{t.label}</span>
+                  {look.value && <span className="dot-value">{look.value}</span>}
                   {look.badge && <span className="badge" />}
                 </button>
               );
@@ -232,11 +234,14 @@ export default function Trees() {
           {colorBy === 'press' && (
             <div className="map-legend">
               {palette.map((p) => <span key={p.id}><i style={{ background: p.color }} />{fmtDate(p.date).slice(0, -5)}</span>)}
-              <span style={{ opacity: 0.6 }}>faded = no press set</span>
+              <span><i className="legend-nodata" />no press set</span>
             </div>
           )}
           {colorBy && colorBy !== 'press' && colorBy !== 'missing' && (
-            <div className="map-legend"><span>pale = low · dark = high</span><span style={{ opacity: 0.6 }}>faded = not entered</span></div>
+            <div className="map-legend">
+              {mapLegend(colorBy, range).map((l) => <span key={l.text}><i style={{ background: l.bg }} />{l.text}</span>)}
+              <span><i className="legend-nodata" />not entered</span>
+            </div>
           )}
           {colorBy === 'missing' && (
             <div className="map-legend">
@@ -250,28 +255,7 @@ export default function Trees() {
         </>
       )}
 
-      {view === 'list' && [...new Set(active.map((t) => t.row))].sort((a, b) => a - b).map((row) => (
-        <div className="card sheet-scroll" key={row}>
-          <b>Terrace {row}</b>
-          <table className="sheet">
-            <thead><tr><th>Tree</th><th>Ripe</th><th>Sacks</th><th>Pruning</th><th>Press</th></tr></thead>
-            <tbody>
-              {active.filter((t) => t.row === row).map((t) => {
-                const c = checkOf.get(t.id);
-                return (
-                  <tr key={t.id}>
-                    <td><Link to={`/trees/${t.id}`}>{t.label}</Link></td>
-                    <td>{c?.ripeness ?? '—'}</td>
-                    <td>{c?.sacks ?? '—'}</td>
-                    <td>{c?.pruning_planned || '—'}</td>
-                    <td>{c?.press_date ? fmtDate(c.press_date).slice(0, -5) : '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ))}
+      {view === 'sheet' && <SeasonSheet trees={trees} isOwner={isOwner} onSaved={loadChecks} />}
 
       {openId && !selecting && !logFor && (
         <TreeSheet tree={trees.find((t) => t.id === openId)} check={checkOf.get(openId)} isOwner={isOwner}

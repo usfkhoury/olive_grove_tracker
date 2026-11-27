@@ -549,6 +549,43 @@ async function handleActivities(method, parts, event) {
   return json(405, { detail: 'method not allowed' });
 }
 
+// ---- press ↔ trees ----
+// A tree is in at most one press per season: its Tree check's Press relation.
+// Ticking trees on a pressing sets Press on their check for the press's year
+// (creating the check if needed); unticking clears it.
+const normId = (id) => String(id || '').replace(/-/g, '').toLowerCase();
+function planPressSync(checks, harvestId, season, treeIds) {
+  var hid = normId(harvestId);
+  var want = new Set(treeIds.map(normId));
+  var plan = { set: [], clear: [], create: [] };
+  var has = new Set();
+  checks.forEach((c) => {
+    var mine = normId(c.press_id) === hid;
+    var inSeason = c.season === season;
+    if (inSeason) has.add(normId(c.tree_id));
+    if (inSeason && want.has(normId(c.tree_id))) { if (!mine) plan.set.push(c.id); }
+    else if (mine) plan.clear.push(c.id);
+  });
+  treeIds.forEach((t) => { if (!has.has(normId(t))) plan.create.push(t); });
+  return plan;
+}
+async function syncPressTrees(harvestId, date, treeIds) {
+  if (!DB.checks || !Array.isArray(treeIds)) return;
+  var season = parseInt(String(date).slice(0, 4), 10);
+  var all = await Promise.all([queryAll(DB.checks), fetchAllTrees()]);
+  var checks = all[0].map((p) => checkOut(p));
+  var labels = new Map(all[1].map((t) => [normId(t.id), t.label]));
+  var plan = planPressSync(checks, harvestId, season, treeIds.filter(isPageId));
+  var press = (ids) => ({ Press: { relation: ids } });
+  for (var i = 0; i < plan.set.length; i++) await notion.pages.update({ page_id: plan.set[i], properties: press([{ id: harvestId }]) });
+  for (var j = 0; j < plan.clear.length; j++) await notion.pages.update({ page_id: plan.clear[j], properties: press([]) });
+  for (var k = 0; k < plan.create.length; k++) {
+    var t = plan.create[k];
+    await notion.pages.create({ parent: { database_id: DB.checks },
+      properties: checkProps({ tree_id: t, season: season, press_id: harvestId }, labels.get(normId(t)) || '?') });
+  }
+}
+
 async function handleHarvests(method, parts, event) {
   if (parts.length === 1) {
     if (method === 'GET') return json(200, await fetchAllHarvests());
@@ -564,6 +601,7 @@ async function handleHarvests(method, parts, event) {
       var pressData = { date: body.date, kind: 'press', amount_kg: body.oil_kg,
         notes: 'Pressing of ' + formatNum(body.olives_kg) + 'kg olives' };
       await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(pressData, page.id) });
+      await syncPressTrees(page.id, body.date, body.tree_ids);
       return json(201, harvestOut(page));
     }
     return json(405, { detail: 'method not allowed' });
@@ -587,8 +625,9 @@ async function handleHarvests(method, parts, event) {
       } else {
         await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(pd, pid) });
       }
-      return json(200, harvestOut(pg));
     } catch (e) { return json(404, { detail: 'Harvest not found' }); }
+    await syncPressTrees(pid, b1.date, b1.tree_ids);
+    return json(200, harvestOut(pg));
   }
   if (method === 'DELETE') {
     var d2 = await requireOwner(event); if (d2) return json(d2[0], { detail: d2[1] });
@@ -855,4 +894,4 @@ exports.handler = async (event) => {
 };
 
 // Pure helpers, exported for tests/api.test.js only.
-exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps };
+exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps, planPressSync };
