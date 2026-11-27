@@ -178,7 +178,6 @@ function taskOut(page) {
 // Tree checks: one row per tree per season. Name is derived (`T12 — 2026`),
 // season is parsed back out of it so there is no separate Season property.
 const CHECK_OPTIONS = {
-  canopy_density: ['Low', 'Medium', 'High', 'Very high'],
   fruit_size: ['Small', 'Medium', 'Big'],
   pruning_planned: ['Skip', 'Light', 'Medium', 'Heavy']
 };
@@ -199,7 +198,6 @@ function checkOut(page, treeLookup, harvestLookup) {
     tree_label: tree ? tree.label : '',
     press_id: pressId,
     press_date: press ? press.date : null,
-    canopy_density: readSelect(p['Canopy density']),
     fruit_size: readSelect(p['Fruit size']),
     ripeness: readNum(p['Ripeness at harvest']),
     sacks: readNum(p.Sacks),
@@ -287,7 +285,6 @@ function checkProps(data, treeLabel) {
     Name: { title: richText(treeLabel + ' — ' + data.season) },
     Tree: { relation: [{ id: data.tree_id }] },
     Press: { relation: data.press_id ? [{ id: data.press_id }] : [] },
-    'Canopy density': checkSelect('canopy_density', data.canopy_density),
     'Fruit size': checkSelect('fruit_size', data.fruit_size),
     'Ripeness at harvest': { number: rip },
     Sacks: { number: data.sacks == null || data.sacks === '' ? null : Number(data.sacks) },
@@ -832,8 +829,8 @@ async function handleExport(parts) {
   }
   if (f === 'checks.csv') {
     var rows6 = (await fetchAllChecks()).slice().reverse();
-    return csvResponse('tree_checks', toCsv(['id','tree','season','press_date','canopy_density','fruit_size','ripeness','sacks','pruning_planned','notes'],
-      rows6.map((c) => [c.id, c.tree_label, c.season, c.press_date || '', c.canopy_density || '', c.fruit_size || '', c.ripeness, c.sacks, c.pruning_planned || '', c.notes])));
+    return csvResponse('tree_checks', toCsv(['id','tree','season','press_date','fruit_size','ripeness','sacks','pruning_planned','notes'],
+      rows6.map((c) => [c.id, c.tree_label, c.season, c.press_date || '', c.fruit_size || '', c.ripeness, c.sacks, c.pruning_planned || '', c.notes])));
   }
   if (f === 'all.json') {
     var trees = await fetchAllTrees();
@@ -894,4 +891,4 @@ exports.handler = async (event) => {
 };
 
 // Pure helpers, exported for tests/api.test.js only.
-exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps, planPressSync };
+exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps, planPressSync, checkProps };

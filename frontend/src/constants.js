@@ -5,7 +5,6 @@ export const KG_PER_L = TANAKE_KG / TANAKE_L;
 
 // Must match the select options on the Notion "Tree checks" DB.
 export const CHECK_OPTIONS = {
-  canopy_density: ['Low', 'Medium', 'High', 'Very high'],
   fruit_size: ['Small', 'Medium', 'Big'],
   pruning_planned: ['Skip', 'Light', 'Medium', 'Heavy'],
 };

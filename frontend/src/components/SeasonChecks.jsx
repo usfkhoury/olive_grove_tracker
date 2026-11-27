@@ -3,12 +3,11 @@ import api, { CHECK_OPTIONS, fmtDate } from '../api.js';
 import Info from './Info.jsx';
 
 // Per-season observations for one tree (Notion "Tree checks" DB):
-// canopy density, fruit size, ripeness at harvest (0–7), sacks, pruning plan.
+// fruit size, ripeness at harvest (0–7), sacks, pruning plan.
 const blank = (treeId) => ({
   tree_id: treeId,
   season: new Date().getFullYear(),
   press_id: '',
-  canopy_density: '',
   fruit_size: '',
   ripeness: '',
   sacks: '',
@@ -57,10 +56,7 @@ function CheckForm({ initial, harvests, onSave, onCancel, onDelete, saving }) {
           </select>
         </label>
       </div>
-      <div className="row2">
-        {select('canopy_density', 'Canopy density', CHECK_OPTIONS.canopy_density)}
-        {select('fruit_size', 'Fruit size', CHECK_OPTIONS.fruit_size)}
-      </div>
+      {select('fruit_size', 'Fruit size', CHECK_OPTIONS.fruit_size)}
       <div className="row2">
         <label className="field">
           <span>Ripeness at harvest (0–7) <Info term="ripeness" /></span>
@@ -180,7 +176,6 @@ export default function SeasonChecks({ treeId, isOwner }) {
                 </div>
               </div>
               <div>
-                {c.canopy_density && <span className="chip">Density: {c.canopy_density}</span>}
                 {c.fruit_size && <span className="chip">Fruit: {c.fruit_size}</span>}
               </div>
               {c.notes && (

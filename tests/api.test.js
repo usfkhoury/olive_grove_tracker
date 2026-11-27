@@ -68,3 +68,9 @@ test('planPressSync: dashed and plain page ids compare equal', () => {
   const plan = I.planPressSync(checks, 'p1', 2026, ['aaaaaaaabbbbccccddddeeeeeeeeeeee']);
   assert.deepEqual(plan, { set: [], clear: [], create: [] });
 });
+
+test('checkProps never writes Canopy density (old Notion values are left as-is)', () => {
+  const props = I.checkProps({ tree_id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', season: 2026, fruit_size: 'Big', canopy_density: 'High' }, 'T1');
+  assert.equal('Canopy density' in props, false);
+  assert.deepEqual(props['Fruit size'], { select: { name: 'Big' } });
+});

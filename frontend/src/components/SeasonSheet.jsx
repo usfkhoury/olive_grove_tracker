@@ -4,10 +4,11 @@ import api, { CHECK_OPTIONS, fmtDate } from '../api.js';
 import Info from './Info.jsx';
 
 // One row per active tree for one season: press, sacks, ripeness (latest
-// weekly Jaén sample), pruning planned. Saves create or update that tree's
-// Tree check; density / fruit size / notes are kept (edited on the tree page).
+// weekly Jaén sample), pruning planned, fruit size. Saves create or update
+// that tree's Tree check; notes are kept (edited on the tree page).
 const toRow = (c) => ({
   press_id: c?.press_id || '', sacks: c?.sacks ?? '', ripeness: c?.ripeness ?? '', pruning_planned: c?.pruning_planned || '',
+  fruit_size: c?.fruit_size || '',
 });
 
 export default function SeasonSheet({ trees, isOwner, onSaved }) {
@@ -41,8 +42,7 @@ export default function SeasonSheet({ trees, isOwner, onSaved }) {
       ripeness: r.ripeness === '' ? null : Number(r.ripeness),
       sacks: r.sacks === '' ? null : Number(r.sacks),
       pruning_planned: r.pruning_planned || null,
-      canopy_density: c?.canopy_density || null,
-      fruit_size: c?.fruit_size || null,
+      fruit_size: r.fruit_size || null,
       notes: c?.notes || '',
     };
     setStatus((s) => ({ ...s, [t.id]: 'saving' }));
@@ -83,7 +83,7 @@ export default function SeasonSheet({ trees, isOwner, onSaved }) {
           <thead>
             <tr>
               <th>Tree</th><th>Press</th><th>Sacks <Info term="sacks" /></th>
-              <th>Ripe <Info term="ripeness" /></th><th>Pruning</th><th />
+              <th>Ripe <Info term="ripeness" /></th><th>Pruning</th><th>Fruit</th><th />
             </tr>
           </thead>
           <tbody>
@@ -105,6 +105,12 @@ export default function SeasonSheet({ trees, isOwner, onSaved }) {
                     <select disabled={!isOwner} value={r.pruning_planned} onChange={(e) => set(t, 'pruning_planned', e.target.value)}>
                       <option value="">—</option>
                       {CHECK_OPTIONS.pruning_planned.map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <select disabled={!isOwner} value={r.fruit_size} onChange={(e) => set(t, 'fruit_size', e.target.value)}>
+                      <option value="">—</option>
+                      {CHECK_OPTIONS.fruit_size.map((o) => <option key={o}>{o}</option>)}
                     </select>
                   </td>
                   <td className="sheet-status" title={st && st !== 'saving' && st !== 'saved' ? st : ''}>

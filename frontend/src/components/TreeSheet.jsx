@@ -18,7 +18,6 @@ export default function TreeSheet({ tree, check, isOwner, onLog, onClose }) {
         </div>
         <div className="sub">
           {check?.press_date ? `Press ${fmtDate(check.press_date)}` : 'No press set'}
-          {check?.canopy_density ? ` · density ${check.canopy_density}` : ''}
           {check?.fruit_size ? ` · fruit ${check.fruit_size}` : ''}
         </div>
         <div style={{ marginTop: 10 }}>

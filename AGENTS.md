@@ -31,8 +31,9 @@ Live: **https://olives.usfkhoury.com** — Netlify site
 | tree_checks    | Tree checks     | `NOTION_DB_CHECKS` (optional) |
 
 Tree checks = one row per tree per season (`T12 — 2026`): Tree + Press
-relations, Canopy density / Fruit size / Pruning planned selects, Ripeness at
-harvest (0–7), Sacks, Notes. Season is parsed from the Name — no Season
+relations, Fruit size / Pruning planned selects, Ripeness at
+harvest (0–7), Sacks, Notes. (The Notion `Canopy density` column is no longer
+used by the app — values kept, never written.) Season is parsed from the Name — no Season
 property. API: `GET/POST /checks` (`?tree_id=`, `?season=`), `PUT/DELETE
 /checks/:id`; one check per tree per season (409 on duplicate).
 
