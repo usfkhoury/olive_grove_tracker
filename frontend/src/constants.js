@@ -2,6 +2,7 @@
 export const TANAKE_KG = 15; // one 16 L tin ≈ 15 kg of oil
 export const TANAKE_L = 16;
 export const KG_PER_L = TANAKE_KG / TANAKE_L;
+export const BOTTLE_L = 2.75; // the standard glass bottle; 1 L and 3 L are occasional
 
 // Must match the select options on the Notion "Tree checks" DB.
 export const CHECK_OPTIONS = {

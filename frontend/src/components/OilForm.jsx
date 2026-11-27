@@ -36,7 +36,6 @@ export default function OilForm({ initial, saving, submitLabel, onSave, onCancel
           </select>
         </label>
       </div>
-      <div className="field">Bottles</div>
       <BottleCounts value={bottles} onChange={setBottles} />
       <label className="field">
         …or litres

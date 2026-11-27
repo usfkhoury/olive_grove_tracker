@@ -5,8 +5,9 @@ import useCollection from '../useCollection.js';
 import BottleCounts from '../components/BottleCounts.jsx';
 import Info from '../components/Info.jsx';
 import OilForm from '../components/OilForm.jsx';
+import SeasonFlow from '../components/SeasonFlow.jsx';
 import {
-  bottlesToLiters, flowBySeason, lastOutflow, reconcileAmount, stockByVintage, toLiters, toTanake,
+  bottlesToLiters, lastOutflow, reconcileAmount, stockByVintage, toLiters, toTanake,
 } from '../lib/oil.js';
 
 const KIND_LABELS = {
@@ -42,7 +43,6 @@ export default function Oil() {
   };
 
   const vintages = stockByVintage(movements);
-  const flows = flowBySeason(movements);
   const lastOut = lastOutflow(movements);
   const staleDays = lastOut ? Math.round((new Date(today()) - new Date(lastOut)) / 864e5) : null;
   const countedL = bottlesToLiters(bottles, unbottled);
@@ -115,20 +115,7 @@ export default function Oil() {
           onSave={async (b) => { if (await create(b)) setShowAdd(false); }} />
       )}
 
-      <h2>By season <span className="sub">(litres)</span></h2>
-      <div className="card sheet-scroll">
-        <table className="sheet">
-          <thead><tr><th>Year</th><th>Pressed</th><th>Home</th><th>Gifts</th><th>Sold</th><th>Adjust</th></tr></thead>
-          <tbody>
-            {flows.map((f) => (
-              <tr key={f.year}>
-                <td>{f.year}</td>
-                {['pressed', 'home', 'gift', 'sale', 'adjustment'].map((k) => <td key={k}>{f[k] ? toLiters(f[k]) : '—'}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SeasonFlow movements={movements} />
 
       <h2>Movements</h2>
       <div className="card">

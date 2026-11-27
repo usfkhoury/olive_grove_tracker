@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { toTanake, toLiters, bottlesToLiters, litersToKg, reconcileAmount, stockByVintage, flowBySeason, lastOutflow } from './oil.js';
+import { toTanake, toLiters, bottlesToLiters, litersToKg, reconcileAmount, stockByVintage, lastOutflow } from './oil.js';
 
 const mv = [
   { date: '2024-10-19', kind: 'press', amount_kg: 40 },
@@ -29,10 +29,32 @@ test('reconcileAmount = counted kg − ledger kg', () => {
 test('stockByVintage uses oldest oil first', () => {
   assert.deepEqual(stockByVintage(mv), [{ year: 2025, kg: 106.5 }, { year: 2026, kg: 187 }]);
 });
-test('flowBySeason totals per year', () => {
-  assert.deepEqual(flowBySeason(mv).find((r) => r.year === 2026), { year: 2026, pressed: 187, home: 0, gift: -15, sale: 0, adjustment: 0 });
-});
 test('lastOutflow ignores presses and positive adjustments', () => {
   assert.equal(lastOutflow(mv), '2026-11-26');
   assert.equal(lastOutflow(mv.slice(0, 1)), null);
+});
+
+import { vintageFlows, inUnit } from './oil.js';
+test('vintageFlows attributes outflows to the oldest oil, parts add up', () => {
+  const mvs = [
+    { date: '2024-10-19', kind: 'press', amount_kg: 40 },
+    { date: '2024-12-31', kind: 'gift', amount_kg: -12 },
+    { date: '2024-12-31', kind: 'home', amount_kg: -28 },
+    { date: '2025-11-02', kind: 'press', amount_kg: 100 },
+    { date: '2026-10-25', kind: 'press', amount_kg: 50 },
+    { date: '2026-11-26', kind: 'gift', amount_kg: -10 },      // drains 2025 (oldest left)
+    { date: '2026-12-01', kind: 'adjustment', amount_kg: -5 }, // lost: 2025
+    { date: '2026-12-02', kind: 'adjustment', amount_kg: 3 },  // found: added to 2026
+  ];
+  const v = vintageFlows(mvs);
+  assert.deepEqual(v.map((r) => r.year), [2026, 2025, 2024]);
+  assert.deepEqual(v.find((r) => r.year === 2024), { year: 2024, pressed: 40, added: 0, home: 28, gift: 12, sale: 0, lost: 0, stock: 0 });
+  assert.deepEqual(v.find((r) => r.year === 2025), { year: 2025, pressed: 100, added: 0, home: 0, gift: 10, sale: 0, lost: 5, stock: 85 });
+  assert.deepEqual(v.find((r) => r.year === 2026), { year: 2026, pressed: 50, added: 3, home: 0, gift: 0, sale: 0, lost: 0, stock: 53 });
+});
+test('inUnit: litres, tanake, 2.75 L bottles', () => {
+  assert.equal(inUnit(187, 'L'), 199);
+  assert.equal(inUnit(187, 'T'), 12.5);
+  assert.equal(inUnit(187, 'B'), 73);
+  assert.equal(inUnit(2.58, 'B'), 1);
 });
