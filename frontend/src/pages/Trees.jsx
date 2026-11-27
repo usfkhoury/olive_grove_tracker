@@ -58,15 +58,15 @@ export default function Trees() {
   const palette = pressPalette(presses);
   const pressColor = new Map(palette.map((p) => [p.id, p.color]));
   const nums = checks.map((c) => c[colorBy]).filter((v) => typeof v === 'number');
-  const range = { min: Math.min(...nums), max: Math.max(...nums) };
+  const range = { values: nums };
   const active = trees.filter((t) => t.status === 'active');
 
   const dotLook = (t) => {
     const c = checkOf.get(t.id);
-    if (colorBy === 'press') return c?.press_id ? { style: { background: pressColor.get(c.press_id) } } : { cls: 'nodata' };
+    if (colorBy === 'press') return c?.press_id ? { style: { background: pressColor.get(c.press_id) } } : { cls: 'nodata', value: '–' };
     if (colorBy) {
       const m = mapColor(colorBy, c?.[colorBy], range);
-      return m ? { cls: 'coloured', style: { background: m.bg, color: m.fg }, value: m.label } : { cls: 'nodata' };
+      return m ? { cls: 'coloured', style: { background: m.bg, color: m.fg }, value: m.label } : { cls: 'nodata', value: '–' };
     }
     return {};
   };
@@ -236,8 +236,8 @@ export default function Trees() {
           <div className="grove-legend">
             <span><i className="legend-dot" /> active</span>
             <span><i className="legend-dot stairs" /> stairs</span>
-            <span><i className="legend-dot removed" /> removed</span>
-            <span><i className="legend-dot empty" /> empty</span>
+            {trees.some((t) => t.status !== 'active') && <span><i className="legend-dot removed" /> removed</span>}
+            {gaps.length > 0 && <span><i className="legend-dot empty" /> empty spot</span>}
           </div>
           {colorBy === 'press' && (
             <div className="map-legend">

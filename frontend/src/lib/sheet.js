@@ -35,8 +35,26 @@ const SACKS = [
   { bg: '#dfe5c6', fg: '#2b2b23' }, { bg: '#a9ba72', fg: '#2b2b23' },
   { bg: '#6b8a33', fg: '#fff' }, { bg: '#33421a', fg: '#fff' },
 ];
-const sackStep = (v, { min, max }) =>
-  (max === min ? 3 : Math.min(3, Math.floor(((v - min) / (max - min)) * 4)));
+// Sacks scale from the values actually on the map: up to 4 distinct values
+// get one colour each; more are split into 4 whole-number ranges.
+function sackBuckets(values) {
+  const distinct = [...new Set(values)].sort((x, y) => x - y);
+  if (!distinct.length) return [];
+  if (distinct.length <= 4) {
+    const n = distinct.length;
+    return distinct.map((v, i) => ({
+      lo: v, hi: v, text: fmt(v), step: n === 1 ? 3 : Math.round((i * 3) / (n - 1)),
+    }));
+  }
+  const min = distinct[0];
+  const max = distinct[distinct.length - 1];
+  const w = Math.ceil((max - min + 1) / 4);
+  return [0, 1, 2, 3].map((i) => {
+    const lo = min + i * w;
+    const hi = i === 3 ? max : min + (i + 1) * w - 1;
+    return { lo, hi, step: i, text: lo === hi ? fmt(lo) : `${fmt(lo)}–${fmt(hi)}` };
+  }).filter((b) => b.lo <= max);
+}
 const fmt = (v) => String(Math.round(v * 10) / 10);
 
 export function mapColor(field, value, range) {
@@ -50,8 +68,10 @@ export function mapColor(field, value, range) {
     return b ? { ...b } : null;
   }
   if (field === 'sacks') {
-    const step = sackStep(Number(value), range);
-    return { step, ...SACKS[step], label: fmt(value) };
+    const v = Number(value);
+    const bs = sackBuckets(range.values);
+    const b = bs.find((x) => v >= x.lo && v <= x.hi + 0.99) || bs[bs.length - 1];
+    return { step: b.step, ...SACKS[b.step], label: fmt(v) };
   }
   return null;
 }
@@ -60,14 +80,7 @@ export function mapColor(field, value, range) {
 export function mapLegend(field, range) {
   if (field === 'ripeness') return RIPENESS.map((b) => ({ bg: b.bg, text: b.text }));
   if (field === 'pruning_planned') return CHECK_OPTIONS.pruning_planned.map((o) => ({ bg: PRUNING[o].bg, text: o }));
-  if (field === 'sacks') {
-    const { min, max } = range;
-    const w = (max - min) / 4;
-    return SACKS.map((b, i) => ({
-      bg: b.bg,
-      text: max === min ? fmt(min) : `${fmt(min + i * w)}–${fmt(i === 3 ? max : min + (i + 1) * w)}`,
-    }));
-  }
+  if (field === 'sacks') return sackBuckets(range.values).map((b) => ({ bg: SACKS[b.step].bg, text: b.text }));
   return [];
 }
 

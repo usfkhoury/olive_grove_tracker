@@ -30,26 +30,32 @@ test('mapColor pruning: one colour per option', () => {
   assert.equal(mapColor('pruning_planned', 'Heavy').label, 'H');
 });
 
-test('mapColor sacks: 4 steps across the range, value as label', () => {
-  const r = { min: 0, max: 8 };
-  assert.equal(mapColor('sacks', 0, r).step, 0);
-  assert.equal(mapColor('sacks', 3, r).step, 1);
-  assert.equal(mapColor('sacks', 5, r).step, 2);
+test('mapColor sacks: up to 4 distinct values → one colour each', () => {
+  const r = { values: [1, 1, 3, 2] };
+  assert.equal(mapColor('sacks', 1, r).step, 0);
+  assert.equal(mapColor('sacks', 3, r).step, 3);
+  assert.equal(mapColor('sacks', 1, { values: [1, 1, 1] }).step, 3); // single value → darkest
+  assert.equal(mapColor('sacks', 2, r).label, '2');
+});
+test('mapColor sacks: more values → 4 whole-number ranges', () => {
+  const r = { values: [1, 2, 3, 4, 5, 6, 7, 8] };
+  assert.equal(mapColor('sacks', 1, r).step, 0);
   assert.equal(mapColor('sacks', 8, r).step, 3);
-  assert.equal(mapColor('sacks', 4, { min: 4, max: 4 }).step, 3);
-  assert.equal(mapColor('sacks', 5, r).label, '5');
 });
 
 test('mapColor: no value → null', () => {
   assert.equal(mapColor('ripeness', null), null);
   assert.equal(mapColor('pruning_planned', ''), null);
-  assert.equal(mapColor('sacks', undefined, { min: 0, max: 1 }), null);
+  assert.equal(mapColor('sacks', undefined, { values: [1] }), null);
 });
 
 test('mapLegend lists one swatch per bucket', () => {
   assert.equal(mapLegend('ripeness').length, 5);
   assert.equal(mapLegend('pruning_planned')[3].text, 'Heavy');
-  assert.equal(mapLegend('sacks', { min: 0, max: 8 }).length, 4);
+  assert.deepEqual(mapLegend('sacks', { values: [1, 1, 1] }).map((l) => l.text), ['1']);
+  assert.deepEqual(mapLegend('sacks', { values: [1, 3, 2] }).map((l) => l.text), ['1', '2', '3']);
+  assert.deepEqual(mapLegend('sacks', { values: [1, 2, 3, 4, 5, 6, 7, 8] }).map((l) => l.text), ['1–2', '3–4', '5–6', '7–8']);
+  assert.deepEqual(mapLegend('sacks', { values: [] }), []);
 });
 
 test('pressPalette: one colour per press date, in date order', () => {

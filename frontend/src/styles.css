@@ -488,3 +488,8 @@ header.topbar .brand {
 .tree-dot.empty { border: 1.5px dotted var(--muted); opacity: 0.5; padding: 0; }
 .map-legend span { display: inline-flex; align-items: center; }
 .inline-label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--muted); }
+/* No value for the chosen grouping: solid pale grey + "–" (empty spots are dotted). */
+.tree-dot.nodata { background: #dedbd0; color: #8a877a; border: 0; box-shadow: none; }
+:root[data-theme='dark'] .tree-dot.nodata { background: #3a3d33; color: #a3a08f; }
+.map-legend .legend-nodata { background: #dedbd0; border: 0; }
+:root[data-theme='dark'] .map-legend .legend-nodata { background: #3a3d33; }
