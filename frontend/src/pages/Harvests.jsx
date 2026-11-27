@@ -26,7 +26,7 @@ export default function Harvests() {
   const [seasons, setSeasons] = useState([]); // computed server-side, oldest first
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [selYear, setSelYear] = useState(null); // null = newest season
+  const [openYears, setOpenYears] = useState(null); // null = newest season open
   const { isOwner } = useAuth();
 
   const refreshSeasons = () =>
@@ -50,7 +50,20 @@ export default function Harvests() {
     return acc;
   }, {});
   const years = Object.keys(byYear).sort((a, b) => b - a);
-  const shownYear = selYear ?? Number(years[0]);
+  const effectiveOpen = openYears ?? new Set(years.slice(0, 1));
+  const toggle = (y) => {
+    const next = new Set(effectiveOpen);
+    if (next.has(y)) next.delete(y);
+    else next.add(y);
+    setOpenYears(next);
+  };
+  // Chart tap: open that year and bring its card into view.
+  const jumpTo = (year) => {
+    const y = String(year);
+    setOpenYears(new Set([...effectiveOpen, y]));
+    requestAnimationFrame(() =>
+      document.getElementById(`season-${y}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
 
   const bestYieldYear = seasons.reduce(
     (a, b) => (a === null || b.yield_pct > a.yield_pct ? b : a), null)?.year;
@@ -74,63 +87,69 @@ export default function Harvests() {
       )}
 
       <div className="card">
-        <HarvestChart seasons={seasons} selected={shownYear} onSelect={setSelYear} />
+        <HarvestChart seasons={seasons} selected={null} onSelect={jumpTo} />
       </div>
 
-      {years.filter((y) => Number(y) === shownYear).map((y) => {
+      <h2>Seasons</h2>
+      {years.map((y) => {
         const s = seasons.find((x) => x.year === Number(y));
         if (!s) return null; // harvests and seasons load in separate requests
+        const open = effectiveOpen.has(y);
         return (
-          <div className="card season-card" key={y}>
-            <div className="season-head">
+          <div className="card season-card" key={y} id={`season-${y}`}>
+            <button type="button" className="season-head" onClick={() => toggle(y)}>
               <span>
                 {y}
                 {s.year === bestYieldYear && <span className="chip gold">best ratio</span>}
                 {s.year === biggestCropYear && <span className="chip">biggest crop</span>}
               </span>
               <span className="season-sub">
-                {s.olives_kg}kg → {s.oil_kg}kg · {s.ratio}:1
+                {s.olives_kg} kg → {s.oil_kg} kg · {s.ratio}:1 {open ? '▴' : '▾'}
               </span>
-            </div>
+            </button>
 
-            <div className="tile-grid">
-              {[
-                ['olives', `${s.olives_kg} kg`],
-                ['oil', `${s.oil_kg} kg`],
-                ['tanake', s.tanake || '—'],
-                ['ratio', `${s.ratio} : 1`],
-                ['pressings', s.sessions],
-              ].map(([label, value]) => (
-                <div className="stat" key={label}>
-                  <div className="value">{value}</div>
-                  <div className="label">{label}</div>
+            {open && (
+              <>
+                <div className="tile-grid">
+                  {[
+                    ['olives', `${s.olives_kg} kg`],
+                    ['oil', `${s.oil_kg} kg`],
+                    ['tanake', s.tanake || '—'],
+                    ['ratio', `${s.ratio} : 1`],
+                    ['pressings', s.sessions],
+                  ].map(([label, value]) => (
+                    <div className="stat" key={label}>
+                      <div className="value">{value}</div>
+                      <div className="label">{label}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            {byYear[y].map((h) => (editingId === h.id ? (
-              <HarvestForm key={h.id} initial={toForm(h)} saving={saving} submitLabel="Save changes"
-                onSave={(b) => save(h.id, b)} onCancel={() => setEditingId(null)} onDelete={() => onDelete(h.id)} />
-            ) : (
-              <div className="session" key={h.id}>
-                <span className="session-date">{shortDate(h.date)}</span>
-                <div className="share-track">
-                  <div
-                    className="share-fill"
-                    style={{ width: `${(h.olives_kg / s.olives_kg) * 100}%` }}
-                  />
-                </div>
-                <span className="session-nums">
-                  {h.olives_kg} → {h.oil_kg} kg
-                  {h.tanake ? ` · ${h.tanake}T` : ''}{' '}
-                  <b className={sessionRatio(h) <= s.ratio ? 'yield-up' : 'yield-down'}>
-                    {sessionRatio(h)}:1
-                  </b>
-                </span>
-                {isOwner && <button className="secondary small" onClick={() => setEditingId(h.id)}>edit</button>}
-                {h.notes && <div className="session-note">{h.notes}</div>}
-              </div>
-            )))}
+                {byYear[y].map((h) => (editingId === h.id ? (
+                  <HarvestForm key={h.id} initial={toForm(h)} saving={saving} submitLabel="Save changes"
+                    onSave={(b) => save(h.id, b)} onCancel={() => setEditingId(null)} onDelete={() => onDelete(h.id)} />
+                ) : (
+                  <div className="session" key={h.id}>
+                    <span className="session-date">{shortDate(h.date)}</span>
+                    <div className="share-track">
+                      <div
+                        className="share-fill"
+                        style={{ width: `${(h.olives_kg / s.olives_kg) * 100}%` }}
+                      />
+                    </div>
+                    <span className="session-nums">
+                      {h.olives_kg} → {h.oil_kg} kg
+                      {h.tanake ? ` · ${h.tanake}T` : ''}{' '}
+                      <b className={sessionRatio(h) <= s.ratio ? 'yield-up' : 'yield-down'}>
+                        {sessionRatio(h)}:1
+                      </b>
+                    </span>
+                    {isOwner && <button className="secondary small" onClick={() => setEditingId(h.id)}>edit</button>}
+                    {h.notes && <div className="session-note">{h.notes}</div>}
+                  </div>
+                )))}
+              </>
+            )}
           </div>
         );
       })}

@@ -1,58 +1,76 @@
-// One chart for every season: olives kg (pale bar), oil kg (dark bar inside),
-// ratio x:1 (gold line, right axis). Tap a column to select its year.
-// `seasons` comes from /api/harvests/seasons (oldest first).
-const W = 300, H = 190, L = 32, R = 32, T = 14, B = 22;
+// All seasons at a glance, two panels sharing the year axis:
+//   top    — olives kg (light bar) and oil kg (dark bar) side by side, labelled
+//   bottom — ratio x:1 (kg olives per kg oil) with the all-years average
+// Tapping a year calls onSelect(year). `seasons` is oldest first.
+const W = 340;
+const PAD_L = 8, PAD_R = 8;
+const BAR_TOP = 18, BAR_H = 130;       // bar panel
+const YEAR_Y = BAR_TOP + BAR_H + 15;   // year labels
+const R_TOP = YEAR_Y + 28, R_H = 70;   // ratio panel
+const H = R_TOP + R_H + 16;
 
 export default function HarvestChart({ seasons, selected, onSelect }) {
   if (!seasons.length) return <p className="empty">No harvests yet.</p>;
-  const maxKg = Math.ceil(Math.max(...seasons.map((s) => s.olives_kg)) / 100) * 100 || 100;
+
+  const cw = (W - PAD_L - PAD_R) / seasons.length;
+  const cx = (i) => PAD_L + i * cw + cw / 2;
+  const maxKg = Math.max(...seasons.map((s) => s.olives_kg)) || 1;
+  const yKg = (v) => BAR_TOP + BAR_H - (v / maxKg) * BAR_H;
+  const bw = Math.min(18, cw * 0.36);
+
   const ratios = seasons.map((s) => s.ratio).filter((r) => r != null);
-  const rLo = Math.floor(Math.min(...ratios) - 0.3);
-  const rHi = Math.ceil(Math.max(...ratios) + 0.3);
-  const cw = (W - L - R) / seasons.length;
-  const yKg = (v) => T + (1 - v / maxKg) * (H - T - B);
-  const yR = (v) => T + (1 - (v - rLo) / (rHi - rLo || 1)) * (H - T - B);
-  const cx = (i) => L + i * cw + cw / 2;
-  const kgTicks = [0, maxKg / 2, maxKg];
-  const rTicks = [];
-  for (let r = Math.ceil(rLo); r <= rHi; r += 1) rTicks.push(r);
+  const avg = ratios.reduce((a, b) => a + b, 0) / (ratios.length || 1);
+  const rLo = Math.min(...ratios, avg);
+  const rHi = Math.max(...ratios, avg);
+  const yR = (v) => R_TOP + 14 + (1 - (v - rLo) / (rHi - rLo || 1)) * (R_H - 30);
+  const best = Math.min(...ratios);
   const pts = seasons.map((s, i) => (s.ratio == null ? null : `${cx(i)},${yR(s.ratio)}`)).filter(Boolean);
 
   return (
-    <>
+    <div className="harvest-chart">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Olives, oil and ratio per season">
-        {kgTicks.map((v) => (
-          <g key={`k${v}`}>
-            <line x1={L} x2={W - R} y1={yKg(v)} y2={yKg(v)} stroke="var(--hairline)" />
-            <text x={L - 4} y={yKg(v) + 3} fontSize="8.5" textAnchor="end" fill="var(--muted)">{v}</text>
-          </g>
-        ))}
-        {rTicks.map((v) => (
-          <text key={`r${v}`} x={W - R + 4} y={yR(v) + 3} fontSize="8.5" fill="var(--chip-gold-text)">{v}:1</text>
-        ))}
+        <text x={PAD_L} y={10} className="hc-title">Olives &amp; oil (kg)</text>
+
         {seasons.map((s, i) => {
-          const x0 = L + i * cw + cw * 0.15;
-          const bw = cw * 0.7;
           const on = s.year === selected;
+          const x = cx(i);
           return (
-            <g key={s.year} onClick={() => onSelect(s.year)} style={{ cursor: 'pointer' }}>
-              <rect x={L + i * cw} y={T} width={cw} height={H - T - B} fill={on ? 'var(--chip-gold-bg)' : 'transparent'} />
-              <rect x={x0} y={yKg(s.olives_kg)} width={bw} height={yKg(0) - yKg(s.olives_kg)} rx="2" fill="var(--olive-pale)" stroke="var(--olive-light)" strokeWidth="0.5" />
-              <rect x={x0 + bw * 0.2} y={yKg(s.oil_kg)} width={bw * 0.6} height={yKg(0) - yKg(s.oil_kg)} rx="2" fill="var(--olive-dark)" />
-              <text x={cx(i)} y={H - 8} fontSize="9" textAnchor="middle" fill={on ? 'var(--text)' : 'var(--muted)'} fontWeight={on ? 700 : 400}>
-                {String(s.year).slice(2)}'
-              </text>
+            <g key={s.year} className="hc-col" onClick={() => onSelect(s.year)}>
+              <rect x={PAD_L + i * cw + 1} y={BAR_TOP - 4} width={cw - 2} height={R_TOP + R_H - BAR_TOP + 8}
+                rx="8" className={on ? 'hc-sel' : 'hc-hit'} />
+              <rect x={x - bw - 1} y={yKg(s.olives_kg)} width={bw} height={BAR_TOP + BAR_H - yKg(s.olives_kg)}
+                rx="3" className="hc-olives" />
+              <rect x={x + 1} y={yKg(s.oil_kg)} width={bw} height={BAR_TOP + BAR_H - yKg(s.oil_kg)}
+                rx="3" className="hc-oil" />
+              <text x={x - bw / 2 - 1} y={yKg(s.olives_kg) - 3} className="hc-val">{Math.round(s.olives_kg)}</text>
+              <text x={x + bw / 2 + 1} y={yKg(s.oil_kg) - 3} className="hc-val hc-val-oil">{Math.round(s.oil_kg)}</text>
+              <text x={x} y={YEAR_Y} className={`hc-year ${on ? 'on' : ''}`}>{s.year}</text>
             </g>
           );
         })}
-        <polyline fill="none" stroke="var(--gold)" strokeWidth="2" points={pts.join(' ')} />
-        {seasons.map((s, i) => s.ratio != null && <circle key={`c${s.year}`} cx={cx(i)} cy={yR(s.ratio)} r="3" fill="var(--gold)" />)}
+        <line x1={PAD_L} x2={W - PAD_R} y1={BAR_TOP + BAR_H} y2={BAR_TOP + BAR_H} className="hc-axis" />
+
+        <text x={PAD_L} y={R_TOP - 6} className="hc-title">
+          Ratio — kg olives per 1 kg oil (lower = more oil) · <tspan className="hc-avg-label">- - avg {avg.toFixed(1)}</tspan>
+        </text>
+        <line x1={PAD_L} x2={W - PAD_R} y1={yR(avg)} y2={yR(avg)} className="hc-avg" />
+        <polyline points={pts.join(' ')} className="hc-line" />
+        {seasons.map((s, i) => s.ratio != null && (
+          <g key={`r${s.year}`} style={{ pointerEvents: 'none' }}>
+            <circle cx={cx(i)} cy={yR(s.ratio)} r={s.ratio === best ? 4.5 : 3.5}
+              className={s.ratio === best ? 'hc-dot best' : 'hc-dot'} />
+            <text x={cx(i)} y={yR(s.ratio) + (s.ratio === best ? 16 : -9)} className="hc-rval">
+              {s.ratio}
+            </text>
+          </g>
+        ))}
       </svg>
       <div className="chart-legend">
-        <span><i style={{ background: 'var(--olive-pale)', border: '1px solid var(--olive-light)' }} />olives kg</span>
-        <span><i style={{ background: 'var(--olive-dark)' }} />oil kg</span>
-        <span><i style={{ background: 'var(--gold)' }} />ratio x:1 (right)</span>
+        <span><i className="hc-olives-key" />olives</span>
+        <span><i className="hc-oil-key" />oil</span>
+        <span><i className="hc-best-key" />best ratio</span>
+        <span style={{ marginLeft: 'auto' }}>tap a year to jump to it</span>
       </div>
-    </>
+    </div>
   );
 }
