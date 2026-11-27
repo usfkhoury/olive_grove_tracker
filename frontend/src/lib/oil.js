@@ -16,26 +16,10 @@ export function bottlesToLiters(counts, tanake = 0) {
 // kg to record so the ledger matches a physical count (in litres).
 export const reconcileAmount = (countLiters, balanceKg) => r2(countLiters * KG_PER_L - balanceKg);
 
-// Oil left per harvest year, oldest used first. Presses and positive
-// adjustments add to their date's year; anything negative drains the oldest year.
+// Oil left per pressing year, oldest first (see vintageFlows for the rules).
 export function stockByVintage(movements) {
-  const lots = [];
-  for (const m of [...movements].sort((a, b) => a.date.localeCompare(b.date))) {
-    if (m.amount_kg > 0) {
-      const year = Number(m.date.slice(0, 4));
-      const lot = lots.find((l) => l.year === year);
-      if (lot) lot.kg += m.amount_kg;
-      else { lots.push({ year, kg: m.amount_kg }); lots.sort((a, b) => a.year - b.year); }
-    } else {
-      let need = -m.amount_kg;
-      for (const l of lots) {
-        const take = Math.min(l.kg, need);
-        l.kg -= take; need -= take;
-        if (need <= 0) break;
-      }
-    }
-  }
-  return lots.filter((l) => l.kg > 0.05).map((l) => ({ year: l.year, kg: r2(l.kg) }));
+  return vintageFlows(movements).filter((r) => r.stock > 0.05)
+    .map((r) => ({ year: r.year, kg: r.stock })).sort((a, b) => a.year - b.year);
 }
 
 // Date of the most recent oil that left the stock (null if never logged).
@@ -53,8 +37,9 @@ export function inUnit(kg, unit) {
   return Math.round(l);
 }
 
-// Per pressing year, where its oil went (kg). Outflows drain the oldest oil
-// first (same rule as stockByVintage), so for every year:
+// Per pressing year, where its oil went (kg). A movement tagged with a
+// vintage (from a stock count) applies to that year's oil; untagged outflows
+// drain the oldest oil first. For every year:
 //   pressed + added = home + gift + sale + lost + stock
 // added/lost = positive/negative stock adjustments. Newest year first.
 export function vintageFlows(movements) {
@@ -66,14 +51,16 @@ export function vintageFlows(movements) {
   for (const m of [...movements].sort((a, b) => a.date.localeCompare(b.date))) {
     const year = Number(m.date.slice(0, 4));
     if (m.amount_kg > 0) {
-      const l = lot(year);
+      const l = lot(m.kind !== 'press' && m.vintage ? m.vintage : year);
       if (m.kind === 'press') l.pressed += m.amount_kg; else l.added += m.amount_kg;
       l.stock += m.amount_kg;
       continue;
     }
     const key = m.kind === 'adjustment' ? 'lost' : m.kind;
     let need = -m.amount_kg;
-    for (const l of [...lots.values()].sort((a, b) => a.year - b.year)) {
+    const order = [...lots.values()].sort((a, b) => a.year - b.year);
+    if (m.vintage && lots.has(m.vintage)) order.unshift(lots.get(m.vintage)); // its own year first
+    for (const l of order) {
       if (need <= 0) break;
       const take = Math.min(l.stock, need);
       if (take <= 0) continue;
@@ -83,4 +70,19 @@ export function vintageFlows(movements) {
   return [...lots.values()]
     .map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) => [k, k === 'year' ? v : r2(v)])))
     .sort((a, b) => b.year - a.year);
+}
+
+// Stock count per vintage → ledger entries. `counted` = { year: litres };
+// `reason` = what an unexplained shortfall was: 'home' | 'gift' | 'adjustment'
+// (lost). A surplus is always a + adjustment. Years within 0.05 kg are skipped.
+export function countPlan(flows, counted, reason, date) {
+  const out = [];
+  for (const [y, litres] of Object.entries(counted)) {
+    const year = Number(y);
+    const ledger = flows.find((r) => r.year === year)?.stock || 0;
+    const diff = r2(Number(litres) * KG_PER_L - ledger);
+    if (Math.abs(diff) < 0.05) continue;
+    out.push({ date, kind: diff < 0 ? reason : 'adjustment', amount_kg: diff, vintage: year });
+  }
+  return out;
 }

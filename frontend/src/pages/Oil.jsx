@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
 import useCollection from '../useCollection.js';
-import BottleCounts from '../components/BottleCounts.jsx';
-import Info from '../components/Info.jsx';
 import OilForm from '../components/OilForm.jsx';
 import SeasonFlow from '../components/SeasonFlow.jsx';
+import StockCount from '../components/StockCount.jsx';
 import {
-  bottlesToLiters, lastOutflow, reconcileAmount, stockByVintage, toLiters, toTanake,
+  lastOutflow, stockByVintage, toLiters, toTanake,
 } from '../lib/oil.js';
 
 const KIND_LABELS = {
@@ -27,8 +26,6 @@ export default function Oil() {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [counting, setCounting] = useState(false);
-  const [bottles, setBottles] = useState({});
-  const [unbottled, setUnbottled] = useState('');
   const { isOwner } = useAuth();
 
   const refreshSummary = () =>
@@ -45,18 +42,12 @@ export default function Oil() {
   const vintages = stockByVintage(movements);
   const lastOut = lastOutflow(movements);
   const staleDays = lastOut ? Math.round((new Date(today()) - new Date(lastOut)) / 864e5) : null;
-  const countedL = bottlesToLiters(bottles, unbottled);
-  const diff = summary && countedL > 0 ? reconcileAmount(countedL, summary.balance_kg) : null;
-
-  const saveCount = async (e) => {
-    e.preventDefault();
-    const parts = Object.entries(bottles).filter(([, n]) => Number(n) > 0).map(([s, n]) => `${n}×${s} L`);
-    if (Number(unbottled) > 0) parts.push(`${unbottled} tanake unbottled`);
-    const created = await create({
-      date: today(), kind: 'adjustment', amount_kg: diff,
-      notes: `Stock count: ${countedL} L (${parts.join(', ')}); ledger said ${summary.balance_liters} L`,
-    });
-    if (created) { setCounting(false); setBottles({}); setUnbottled(''); }
+  // One entry per counted year; stop at the first failure (shown by the form).
+  const saveCount = async (entries) => {
+    for (const entry of entries) {
+      if (!(await create(entry))) throw new Error(`Saving the ${entry.vintage} correction failed — check Movements before retrying.`);
+    }
+    setCounting(false);
   };
 
   return (
@@ -88,18 +79,7 @@ export default function Oil() {
             <button className="secondary small" style={{ marginTop: 8 }} onClick={() => setCounting(true)}>Count stock</button>
           )}
           {isOwner && counting && (
-            <form className="panel" onSubmit={saveCount} style={{ marginTop: 8 }}>
-              <div className="field">Bottles you have right now <Info term="adjustment" /></div>
-              <BottleCounts value={bottles} onChange={setBottles} withTanake tanake={unbottled} onTanake={setUnbottled} />
-              {diff != null && (
-                <p className="sub">
-                  Counted {countedL} L. {diff === 0 ? 'Matches the ledger — nothing to record.'
-                    : `Records an adjustment of ${diff > 0 ? '+' : ''}${toLiters(diff)} L (${diff} kg).`}
-                </p>
-              )}
-              <button type="submit" disabled={saving || diff == null || diff === 0}>Save count</button>{' '}
-              <button type="button" className="secondary" onClick={() => setCounting(false)}>Cancel</button>
-            </form>
+            <StockCount movements={movements} saving={saving} onSave={saveCount} onCancel={() => setCounting(false)} />
           )}
         </div>
       )}
@@ -140,6 +120,7 @@ export default function Oil() {
                 {m.amount_kg >= 0 ? '+' : ''}{m.amount_kg} kg
               </span>
               <div className="sub">{toLiters(Math.abs(m.amount_kg))} L · {toTanake(Math.abs(m.amount_kg))} T</div>
+              {m.vintage && <div className="sub">{m.vintage} oil</div>}
               {isOwner && m.kind !== 'press' && (
                 <div><button className="secondary small" onClick={() => setEditingId(m.id)}>edit</button></div>
               )}

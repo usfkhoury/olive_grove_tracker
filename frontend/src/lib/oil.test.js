@@ -58,3 +58,28 @@ test('inUnit: litres, tanake, 2.75 L bottles', () => {
   assert.equal(inUnit(187, 'B'), 73);
   assert.equal(inUnit(2.58, 'B'), 1);
 });
+
+import { countPlan } from './oil.js';
+test('vintageFlows: a movement with a vintage drains that year, not the oldest', () => {
+  const mvs = [
+    { date: '2025-11-02', kind: 'press', amount_kg: 100 },
+    { date: '2026-10-25', kind: 'press', amount_kg: 50 },
+    { date: '2026-11-28', kind: 'home', amount_kg: -10, vintage: 2026 },
+    { date: '2026-11-28', kind: 'adjustment', amount_kg: 4, vintage: 2025 },
+  ];
+  const v = vintageFlows(mvs);
+  assert.equal(v.find((r) => r.year === 2026).home, 10);
+  assert.equal(v.find((r) => r.year === 2026).stock, 40);
+  assert.equal(v.find((r) => r.year === 2025).added, 4);
+  assert.equal(v.find((r) => r.year === 2025).stock, 104);
+  assert.deepEqual(stockByVintage(mvs), [{ year: 2025, kg: 104 }, { year: 2026, kg: 40 }]);
+});
+test('countPlan: one entry per year that differs, tagged with its vintage', () => {
+  const flows = [{ year: 2026, stock: 187 }, { year: 2025, stock: 121.5 }];
+  // 2025: 30 × 2.75 L = 82.5 L = 77.34 kg → 44.16 kg used; 2026: 199.47 L ≈ ledger → nothing
+  const plan = countPlan(flows, { 2025: 82.5, 2026: 199.47 }, 'home', '2026-11-28');
+  assert.equal(plan.length, 1);
+  assert.deepEqual(plan[0], { date: '2026-11-28', kind: 'home', amount_kg: -44.16, vintage: 2025 });
+  const more = countPlan(flows, { 2026: 210 }, 'gift', '2026-11-28');
+  assert.deepEqual(more[0], { date: '2026-11-28', kind: 'adjustment', amount_kg: 9.88, vintage: 2026 });
+});

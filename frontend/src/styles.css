@@ -565,3 +565,10 @@ header.topbar .brand {
 .bottle-row.main span { font-weight: 600; }
 .bottle-row.main .bottle-num { font-size: 1.05rem; font-weight: 600; }
 .link-btn { background: none; border: 0; padding: 6px 0; color: var(--olive); font: inherit; font-size: 0.82rem; cursor: pointer; }
+/* Oil: count stock per vintage */
+.stock-count { margin-top: 8px; }
+.count-year { border: 1px solid var(--hairline); border-radius: 10px; padding: 6px 10px 8px; margin: 8px 0; }
+.count-year legend { font-weight: 700; padding: 0 4px; }
+.count-year legend .sub { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+.count-result { font-size: 0.82rem; margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: var(--olive-pale); }
+.count-result.short { background: #f6ecd2; }

@@ -137,7 +137,8 @@ function oilOut(page) {
     kind: readSelect(p.Kind) || '',
     amount_kg: readNum(p['Amount kg']) || 0,
     notes: notesPlain(readRichRaw(p.Notes)),
-    harvest_id: rel[0] || null
+    harvest_id: rel[0] || null,
+    vintage: readNum(p.Vintage)
   };
 }
 // An activity logged from the Calendar links its Seasonal task; its label is the
@@ -241,7 +242,14 @@ function oilProps(data, harvestPageId) {
     Notes: { rich_text: richText(data.notes || '') }
   };
   p.Harvest = harvestPageId ? { relation: [{ id: harvestPageId }] } : { relation: [] };
+  // Vintage = which pressing year's oil this is (set by stock counts). Only
+  // written when given, so edits that omit it keep the stored value.
+  if (data.vintage != null) p.Vintage = { number: data.vintage };
   return p;
+}
+function parseVintage(v) {
+  var y = parseInt(v, 10);
+  return y >= 2000 && y <= 2100 ? y : null;
 }
 function activityProps(data, treePageIds, taskName) {
   var task = data.task_id || null;
@@ -722,7 +730,7 @@ async function handleOil(method, parts, event) {
         var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
         if (!VALID_KINDS[body.kind]) return json(422, { detail: 'Invalid kind' });
         var amount = signedAmount(body.kind, body.amount_kg);
-        var payload = { date: body.date, kind: body.kind, amount_kg: amount, notes: body.notes || '' };
+        var payload = { date: body.date, kind: body.kind, amount_kg: amount, notes: body.notes || '', vintage: parseVintage(body.vintage) };
         var page = await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(payload, null) });
         return json(201, oilOut(page));
       }
@@ -891,4 +899,4 @@ exports.handler = async (event) => {
 };
 
 // Pure helpers, exported for tests/api.test.js only.
-exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps, planPressSync, checkProps };
+exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps, planPressSync, checkProps, oilProps, oilOut, parseVintage };

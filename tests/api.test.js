@@ -74,3 +74,18 @@ test('checkProps never writes Canopy density (old Notion values are left as-is)'
   assert.equal('Canopy density' in props, false);
   assert.deepEqual(props['Fruit size'], { select: { name: 'Big' } });
 });
+
+test('oilProps writes Vintage only when given; oilOut reads it', () => {
+  const base = { date: '2026-11-28', kind: 'home', amount_kg: -5, notes: '' };
+  assert.equal('Vintage' in I.oilProps(base, null), false);
+  assert.deepEqual(I.oilProps({ ...base, vintage: 2025 }, null).Vintage, { number: 2025 });
+  const page = { id: 'x', properties: { Vintage: { number: 2025 }, Kind: { select: { name: 'home' } }, 'Amount kg': { number: -5 }, Date: { date: { start: '2026-11-28' } }, Notes: { rich_text: [] }, Harvest: { relation: [] } } };
+  assert.equal(I.oilOut(page).vintage, 2025);
+});
+test('parseVintage: a year or null', () => {
+  assert.equal(I.parseVintage(2025), 2025);
+  assert.equal(I.parseVintage('2026'), 2026);
+  assert.equal(I.parseVintage(null), null);
+  assert.equal(I.parseVintage('abc'), null);
+  assert.equal(I.parseVintage(1500), null);
+});
