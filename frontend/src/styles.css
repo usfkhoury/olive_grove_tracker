@@ -531,3 +531,15 @@ header.topbar .brand {
 .map-legend .legend-nodata { background: transparent; border: 1.5px dashed var(--muted); }
 .tree-dot.empty, .grove-legend .legend-dot.empty { border-radius: 6px; }
 .grove-legend .legend-dot.empty { border-radius: 2px; }
+/* Sheet: tree name opens a per-row notes drawer */
+.tree-cell { display: inline-flex; align-items: center; gap: 3px; padding: 4px 2px; border: 0; background: none;
+  color: var(--olive-dark); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.tree-cell.on { text-decoration: none; }
+.note-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+.sheet tr.notes-open td, .sheet tr.notes-row td { background: var(--olive-pale); }
+.sheet tr.notes-row td { border-top: 0; padding: 0 4px 10px; }
+.sheet .notes-row textarea { width: 100%; box-sizing: border-box; margin-top: 4px; font-size: 0.85rem; text-align: left; }
+.notes-row-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.82rem; }
+.tree-cell { position: relative; padding-right: 5px; }
+.note-dot { position: absolute; top: 3px; right: -1px; }
+@media (max-width: 420px) { .sheet select, .sheet input { font-size: 0.78rem; } .sheet select { padding: 6px 3px; } }

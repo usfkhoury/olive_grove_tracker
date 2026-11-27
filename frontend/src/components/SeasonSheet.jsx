@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { CHECK_OPTIONS, fmtDate } from '../api.js';
 import Info from './Info.jsx';
 
 // One row per active tree for one season: press, sacks, ripeness (latest
 // weekly Jaén sample), pruning planned, fruit size. Saves create or update
-// that tree's Tree check; notes are kept (edited on the tree page).
+// that tree's Tree check. Tapping the tree name opens a notes drawer under
+// the row; a dot after the name means it has notes this season.
 const toRow = (c) => ({
   press_id: c?.press_id || '', sacks: c?.sacks ?? '', ripeness: c?.ripeness ?? '', pruning_planned: c?.pruning_planned || '',
-  fruit_size: c?.fruit_size || '',
+  fruit_size: c?.fruit_size || '', notes: c?.notes || '',
 });
 
 // `season` is chosen on the Trees page (shared with the Map).
@@ -17,6 +18,7 @@ export default function SeasonSheet({ trees, season, isOwner, onSaved }) {
   const [checks, setChecks] = useState([]);
   const [draft, setDraft] = useState({});
   const [status, setStatus] = useState({});
+  const [notesOpen, setNotesOpen] = useState(null); // tree id whose notes drawer is open
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function SeasonSheet({ trees, season, isOwner, onSaved }) {
       sacks: r.sacks === '' ? null : Number(r.sacks),
       pruning_planned: r.pruning_planned || null,
       fruit_size: r.fruit_size || null,
-      notes: c?.notes || '',
+      notes: r.notes,
     };
     setStatus((s) => ({ ...s, [t.id]: 'saving' }));
     try {
@@ -86,9 +88,18 @@ export default function SeasonSheet({ trees, season, isOwner, onSaved }) {
             {active.map((t) => {
               const r = rowOf(t);
               const st = status[t.id];
+              const open = notesOpen === t.id;
+              const hasNotes = Boolean(r.notes.trim());
               return (
-                <tr key={t.id} className={draft[t.id] ? 'dirty' : ''}>
-                  <td><Link to={`/trees/${t.id}`}>{t.label}</Link></td>
+                <Fragment key={t.id}>
+                <tr className={`${draft[t.id] ? 'dirty' : ''} ${open ? 'notes-open' : ''}`}>
+                  <td>
+                    <button type="button" className={`tree-cell ${open ? 'on' : ''}`} aria-expanded={open}
+                      aria-label={`${t.label}: ${hasNotes ? 'notes' : 'add notes'}`}
+                      onClick={() => setNotesOpen(open ? null : t.id)}>
+                      {t.label}{hasNotes && <i className="note-dot" />}
+                    </button>
+                  </td>
                   <td>
                     <select disabled={!isOwner} value={r.press_id} onChange={(e) => set(t, 'press_id', e.target.value)}>
                       <option value="">—</option>
@@ -113,6 +124,24 @@ export default function SeasonSheet({ trees, season, isOwner, onSaved }) {
                     {st === 'saving' ? '…' : st === 'saved' ? '✓' : st ? '⚠' : ''}
                   </td>
                 </tr>
+                {open && (
+                  <tr className="notes-row">
+                    <td colSpan={7}>
+                      {isOwner ? (
+                        <textarea autoFocus rows={3} value={r.notes} placeholder={`Notes for ${t.label} — ${season}`}
+                          onChange={(e) => set(t, 'notes', e.target.value)} />
+                      ) : (
+                        <div className="sub" style={{ whiteSpace: 'pre-line', padding: '6px 2px' }}>{r.notes || 'No notes.'}</div>
+                      )}
+                      <div className="notes-row-foot">
+                        <Link to={`/trees/${t.id}`}>Open {t.label} →</Link>
+                        {isOwner && <span className="sub">saved with “Save changes”</span>}
+                        <button type="button" className="secondary small" onClick={() => setNotesOpen(null)}>Close</button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
