@@ -415,8 +415,34 @@ header.topbar .brand {
 .mini-map a { height: 11px; border-radius: 50%; background: var(--olive-light); opacity: 0.45; }
 .mini-map a.on { background: var(--gold); opacity: 1; }
 
-.info-btn { background: none; border: 0; padding: 0 2px; color: var(--muted); cursor: pointer; font-size: 0.9em; }
-.info-text { display: block; font-weight: 400; font-size: 0.8rem; color: var(--muted); background: var(--olive-pale); border-radius: 8px; padding: 6px 8px; margin: 4px 0; white-space: normal; }
+/* ⓘ term explanations: small round icon + floating card */
+.info-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; margin: 0 0 0 3px; padding: 0; vertical-align: 1px;
+  border: 1px solid var(--muted); border-radius: 50%; background: transparent;
+  color: var(--muted); font: italic 600 10px/1 Georgia, serif; cursor: help;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.info-btn:hover, .info-btn.on { background: var(--olive); border-color: var(--olive); color: #fff; }
+.info-pop {
+  position: fixed; z-index: 300; box-sizing: border-box; padding: 10px 12px;
+  background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); font-size: 0.8rem; line-height: 1.45;
+  font-weight: 400; text-align: left; white-space: normal; animation: info-in 0.12s ease-out;
+}
+.info-pop::before {
+  content: ''; position: absolute; left: calc(var(--arrow) - 6px); width: 10px; height: 10px;
+  background: var(--card); border: 1px solid var(--border); transform: rotate(45deg);
+}
+.info-pop.below::before { top: -6px; border-right: 0; border-bottom: 0; }
+.info-pop.above::before { bottom: -6px; border-left: 0; border-top: 0; }
+.info-pop-title { font-weight: 700; color: var(--olive-dark); margin-bottom: 4px; }
+.info-pop-body { color: var(--muted); }
+.info-pop-list { list-style: none; margin: 6px 0; padding: 0; }
+.info-pop-list li { display: flex; align-items: center; gap: 6px; padding: 2px 0; color: var(--text); }
+.info-pop-list b { min-width: 1.2em; text-align: right; }
+.info-pop-tail { margin-top: 4px; }
+@keyframes info-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 
 /* Usage overhaul */
 .stat-big { font-size: 1.8rem; font-weight: 700; color: var(--olive-dark); }
