@@ -38,16 +38,21 @@ property. API: `GET/POST /checks` (`?tree_id=`, `?season=`), `PUT/DELETE
 
 ### Hard invariants — do not break
 
-1. **Integer-id marker.** Every page's `Notes` rich_text ends with
-   `[sqlite:<table>#<int_id>]`. The frontend and CSV/JSON exports use that
-   int as the primary id. Creating a row scans `max(existing) + 1`. Never
-   change the marker format; never mutate an existing marker.
+1. **Row id = Notion page uuid.** Legacy `[sqlite:<table>#<n>]` markers were
+   purged (Sept 2026); `notesPlain()` still strips stray ones on read. Never
+   write a marker.
 2. **Harvest ↔ press-movement pair.** Every Harvest owns exactly one Oil
    movement with `Kind = "press"`, `amount_kg = harvest.oil_kg`,
    `date = harvest.date`, linked via the Harvest relation. It is created,
    updated, and archived only through the harvest's own POST/PUT/DELETE.
    The oil-movements endpoint rejects `kind: "press"` writes and refuses to
-   delete press movements (400).
+   delete press movements (400). Non-press movements can be edited (PUT).
+3. **Task links are Notion relations, never name matches.** Activities and
+   Harvests both carry a `Task` relation → Seasonal tasks. `GET /tasks` and
+   `/dashboard` return each task's `done_dates` (activity + press dates via
+   that relation); the browser turns them into due / done / not logged
+   (`frontend/src/lib/season.js`). New harvests inherit the latest harvest's
+   `Task` (= "Harvest & Pressing"), so presses tick that task automatically.
 
 ## Env vars (Netlify → Environment)
 
@@ -57,6 +62,15 @@ and `NOTION_DB_CHECKS`.
 
 Frontend build: `VITE_GOOGLE_CLIENT_ID` (same value as `GOOGLE_CLIENT_ID`),
 `VITE_HOME_URL`.
+
+## Tests
+
+```
+npm test                       # backend pure helpers (node:test, tests/)
+cd frontend && npm test        # frontend lib/ maths (node:test)
+```
+Pure frontend logic lives in `frontend/src/lib/*.js` and imports only
+`frontend/src/constants.js` (plain JS), so node can run it without JSX.
 
 ## Local dev
 

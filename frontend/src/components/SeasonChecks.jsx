@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import api, { CHECK_OPTIONS, fmtDate } from '../api.js';
+import Info from './Info.jsx';
 
 // Per-season observations for one tree (Notion "Tree checks" DB):
 // canopy density, fruit size, ripeness at harvest (0–7), sacks, pruning plan.
@@ -62,11 +63,11 @@ function CheckForm({ initial, harvests, onSave, onCancel, onDelete, saving }) {
       </div>
       <div className="row2">
         <label className="field">
-          Ripeness at harvest (0–7)
+          <span>Ripeness at harvest (0–7) <Info term="ripeness" /></span>
           <input type="number" min="0" max="7" step="0.5" value={f.ripeness ?? ''} onChange={set('ripeness')} />
         </label>
         <label className="field">
-          Sacks
+          <span>Sacks <Info term="sacks" /></span>
           <input type="number" min="0" step="0.5" value={f.sacks ?? ''} onChange={set('sacks')} />
         </label>
       </div>
@@ -167,11 +168,11 @@ export default function SeasonChecks({ treeId, isOwner }) {
               <div className="tile-grid">
                 <div className="stat">
                   <div className="value">{c.ripeness ?? '—'}</div>
-                  <div className="label">Ripeness /7</div>
+                  <div className="label">Ripeness /7 <Info term="ripeness" /></div>
                 </div>
                 <div className="stat">
                   <div className="value">{c.sacks ?? '—'}</div>
-                  <div className="label">Sacks</div>
+                  <div className="label">Sacks <Info term="sacks" /></div>
                 </div>
                 <div className="stat">
                   <div className="value">{c.pruning_planned || '—'}</div>

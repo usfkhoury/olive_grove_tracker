@@ -7,6 +7,7 @@ const TOKEN_KEY = 'olive_google_id_token';
 
 const AuthContext = createContext({
   isOwner: false,
+  expired: false,
   token: null,
   loginWithGoogle: () => {},
   logout: () => {},
@@ -26,10 +27,13 @@ export const AUTH_INVALID_EVENT = 'olive:auth-invalid';
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => getStoredToken());
   const [isOwner, setIsOwner] = useState(false);
+  // expired = a write was rejected mid-session. isOwner stays true so open
+  // forms (and what was typed in them) stay mounted while the owner re-signs in.
+  const [expired, setExpired] = useState(false);
 
   // Verify any token we already have. Silent failure leaves the UI read-only.
   useEffect(() => {
-    if (!token) { setIsOwner(false); return; }
+    if (!token) return;
     let cancelled = false;
     fetch('/api/auth/verify', {
       method: 'POST',
@@ -48,7 +52,7 @@ export function AuthProvider({ children }) {
     function onInvalid() {
       clearStoredToken();
       setToken(null);
-      setIsOwner(false);
+      setExpired(true);
     }
     window.addEventListener(AUTH_INVALID_EVENT, onInvalid);
     return () => window.removeEventListener(AUTH_INVALID_EVENT, onInvalid);
@@ -67,16 +71,18 @@ export function AuthProvider({ children }) {
     try { localStorage.setItem(TOKEN_KEY, credential); } catch {}
     setToken(credential);
     setIsOwner(true);
+    setExpired(false);
   }, []);
 
   const logout = useCallback(() => {
     clearStoredToken();
     setToken(null);
     setIsOwner(false);
+    setExpired(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isOwner, token, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ isOwner, expired, token, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

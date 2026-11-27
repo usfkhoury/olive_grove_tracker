@@ -1,30 +1,60 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api, { fmtDate } from '../api.js';
+import { useAuth } from '../AuthContext.jsx';
+import api, { fmtDate, today } from '../api.js';
+import LogTaskForm from '../components/LogTaskForm.jsx';
 import SeasonBars from '../components/SeasonBars.jsx';
+import TaskNotes from '../components/TaskNotes.jsx';
+import { latestWindow, taskStatus } from '../lib/season.js';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const [trees, setTrees] = useState([]);
   const [error, setError] = useState('');
+  const [detailsFor, setDetailsFor] = useState(null);
+  const { isOwner } = useAuth();
 
+  const load = () => api.get('/dashboard').then(setData).catch((e) => setError(e.message));
   useEffect(() => {
-    api.get('/dashboard').then(setData).catch((e) => setError(e.message));
+    load();
+    api.get('/trees').then(setTrees).catch(() => {});
   }, []);
 
-  if (error) return <p className="error">{error}</p>;
+  if (error && !data) return <p className="error">{error}</p>;
   if (!data) return <p className="empty">Loading…</p>;
 
   const latest = data.seasons[data.seasons.length - 1];
+  const now = today();
+  const year = Number(now.slice(0, 4));
+  const withStatus = data.tasks.map((t) => ({ ...t, ...taskStatus(t, now) }));
+  const due = withStatus.filter((t) => t.status === 'now');
+  const doneNow = withStatus.filter((t) => t.status === 'done' && latestWindow(t, now).current);
+  const soon = withStatus.filter((t) => t.status === 'soon');
+  // Tasks whose window has started this calendar year, and how many were logged.
+  const startedThisYear = data.tasks.filter((t) => {
+    const w = latestWindow(t, now);
+    return w.from.startsWith(String(year)) && w.from <= now;
+  });
+  const loggedThisYear = startedThisYear.filter(
+    (t) => (t.done_dates || []).some((d) => d >= latestWindow(t, now).from));
+
+  const markDone = async (t) => {
+    if (!confirm(`Log "${t.name}" as done today (whole grove)?`)) return;
+    setError('');
+    try {
+      await api.post('/activities', { date: now, task_id: t.id, notes: '', tree_ids: [] });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
 
   return (
     <>
       <h1>🫒 Olive Grove</h1>
+      {error && <p className="error">{error}</p>}
 
       <div className="stat-grid">
-        <div className="stat">
-          <div className="value">{data.tree_count}</div>
-          <div className="label">active trees</div>
-        </div>
         <div className="stat">
           <div className="value">{data.oil.balance_kg} kg</div>
           <div className="label">
@@ -39,34 +69,49 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+        <div className="stat">
+          <div className="value">{loggedThisYear.length}/{startedThisYear.length}</div>
+          <div className="label">{year} tasks logged</div>
+        </div>
       </div>
 
-      <h2>This time of year</h2>
+      <h2>Due now</h2>
       <div className="card">
-        {data.active_tasks.length === 0 && data.upcoming_tasks.length === 0 && (
-          <p className="empty">No seasonal tasks for now.</p>
-        )}
-        {data.active_tasks.map((t) => (
-          <div className="item" key={t.id}>
-            <div>
-              <div className="title">{t.name}</div>
-              {t.notes && <div className="sub">{t.notes}</div>}
+        {due.length === 0 && <p className="empty">Nothing due — all current tasks are logged. 🌿</p>}
+        {due.map((t) => (
+          <div key={t.id}>
+            <div className="item">
+              <div>
+                <div className="title">{t.name}</div>
+                <TaskNotes notes={t.notes} />
+              </div>
+              {isOwner && (
+                <div style={{ whiteSpace: 'nowrap' }}>
+                  <button className="small" onClick={() => markDone(t)}>✓ Done</button>{' '}
+                  <button className="secondary small" onClick={() => setDetailsFor(detailsFor === t.id ? null : t.id)}>details</button>
+                </div>
+              )}
             </div>
-            <span className="chip gold">now</span>
+            {detailsFor === t.id && (
+              <LogTaskForm task={t} trees={trees} onCancel={() => setDetailsFor(null)}
+                onDone={() => { setDetailsFor(null); load(); }} />
+            )}
           </div>
         ))}
-        {data.upcoming_tasks.map((t) => (
+        {doneNow.map((t) => (
           <div className="item" key={t.id}>
-            <div>
-              <div className="title">{t.name}</div>
-              {t.notes && <div className="sub">{t.notes}</div>}
-            </div>
+            <div className="title" style={{ opacity: 0.7 }}>{t.name}</div>
+            <span className="chip">✓ {fmtDate(t.lastDone).slice(0, -5)}</span>
+          </div>
+        ))}
+        {soon.length > 0 && <h3 style={{ marginTop: 12 }}>Coming up</h3>}
+        {soon.map((t) => (
+          <div className="item" key={t.id}>
+            <div><div className="title">{t.name}</div><TaskNotes notes={t.notes} /></div>
             <span className="chip">soon</span>
           </div>
         ))}
-        <div style={{ marginTop: 8 }}>
-          <Link to="/calendar">Full calendar →</Link>
-        </div>
+        <div style={{ marginTop: 8 }}><Link to="/calendar">Full calendar →</Link></div>
       </div>
 
       <h2>Harvest History</h2>
@@ -102,9 +147,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <h2>Export & Backup</h2>
-      <div className="card">
-        <p className="sub" style={{ color: 'var(--muted)', marginBottom: 10 }}>
+      <details className="card" style={{ marginTop: 16 }}>
+        <summary>Export & backup</summary>
+        <p className="sub" style={{ color: 'var(--muted)', margin: '10px 0' }}>
           Download your records as spreadsheets, or a full JSON backup.
         </p>
         <div className="export-links">
@@ -124,7 +169,7 @@ export default function Dashboard() {
             Full backup (JSON)
           </a>
         </div>
-      </div>
+      </details>
     </>
   );
 }

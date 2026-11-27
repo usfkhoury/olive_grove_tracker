@@ -124,6 +124,7 @@ function harvestOut(page) {
     oil_kg: oil,
     tanake: readNum(p.Tanake),
     notes: notesPlain(readRichRaw(p.Notes)),
+    task_id: readRelIds(p.Task)[0] || null,
     yield_pct: olives > 0 ? Math.round((oil / olives) * 1000) / 10 : null
   };
 }
@@ -219,8 +220,10 @@ function treeProps(data) {
     Notes: { rich_text: richText(data.notes || '') }
   };
 }
+// Task = the Seasonal task a press counts as done (Harvest & Pressing). Only
+// written when task_id is given, so edits that omit it keep the link.
 function harvestProps(data) {
-  return {
+  var props = {
     Name: { title: richText('Harvest — ' + data.date) },
     Date: { date: { start: data.date } },
     'Olives kg': { number: num(data.olives_kg) },
@@ -228,6 +231,8 @@ function harvestProps(data) {
     Tanake: { number: data.tanake == null ? null : Number(data.tanake) },
     Notes: { rich_text: richText(data.notes || '') }
   };
+  if (isPageId(data.task_id)) props.Task = { relation: [{ id: data.task_id }] };
+  return props;
 }
 function oilProps(data, harvestPageId) {
   var p = {
@@ -308,30 +313,54 @@ async function fetchAllOil() {
   out.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   return out;
 }
-async function fetchAllTasks() {
-  var pages = await queryAll(DB.tasks);
-  return pages.map(taskOut).sort((a, b) => a.start_month - b.start_month || a.id.localeCompare(b.id));
+// Query several DBs at once (unset optional DBs → []).
+async function loadPages(names) {
+  var arr = await Promise.all(names.map((n) => (DB[n] ? queryAll(DB[n]) : [])));
+  var out = {};
+  names.forEach((n, i) => { out[n] = arr[i]; });
+  return out;
 }
-async function fetchAllActivities() {
-  var treePages = await queryAll(DB.trees);
-  var actPages = await queryAll(DB.activities);
-  var taskPages = await queryAll(DB.tasks);
-  var lookup = new Map();
-  for (var i = 0; i < treePages.length; i++) {
-    var tp = treePages[i];
-    lookup.set(tp.id, { id: tp.id, label: readTitle(tp.properties && tp.properties.Label) });
-  }
+function buildActivities(treePages, actPages, taskPages) {
+  var lookup = new Map(treePages.map((tp) => [tp.id, { id: tp.id, label: readTitle((tp.properties || {}).Label) }]));
   var taskLookup = new Map(taskPages.map((t) => [t.id, readTitle((t.properties || {}).Name)]));
   var out = actPages.map((p) => activityOut(p, lookup, taskLookup));
   out.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   return out;
 }
+// done_dates = dates of activities (and presses) linked to the task via their
+// Task relation, newest first; the frontend turns them into done / due / missed.
+function attachDoneDates(tasks, activityPages, harvestPages) {
+  var byTask = new Map();
+  var add = (pages) => {
+    for (var i = 0; i < pages.length; i++) {
+      var p = pages[i].properties || {};
+      var tid = readRelIds(p.Task)[0];
+      var d = readDate(p.Date);
+      if (!tid || !d) continue;
+      if (!byTask.has(tid)) byTask.set(tid, []);
+      byTask.get(tid).push(d);
+    }
+  };
+  add(activityPages);
+  add(harvestPages || []);
+  return tasks.map((t) => Object.assign({}, t, { done_dates: (byTask.get(t.id) || []).sort().reverse() }));
+}
+const byStartMonth = (a, b) => a.start_month - b.start_month || a.id.localeCompare(b.id);
+async function fetchAllTasks() {
+  var pg = await loadPages(['tasks', 'activities', 'harvests']);
+  return attachDoneDates(pg.tasks.map(taskOut).sort(byStartMonth), pg.activities, pg.harvests);
+}
+async function fetchAllActivities() {
+  var pg = await loadPages(['trees', 'activities', 'tasks']);
+  return buildActivities(pg.trees, pg.activities, pg.tasks);
+}
 
 async function fetchAllChecks() {
   if (!DB.checks) return [];
-  var pages = await queryAll(DB.checks);
-  var treeLookup = new Map((await fetchAllTrees()).map((t) => [t.id, t]));
-  var harvestLookup = new Map((await fetchAllHarvests()).map((h) => [h.id, h]));
+  var all = await Promise.all([queryAll(DB.checks), fetchAllTrees(), fetchAllHarvests()]);
+  var pages = all[0];
+  var treeLookup = new Map(all[1].map((t) => [t.id, t]));
+  var harvestLookup = new Map(all[2].map((h) => [h.id, h]));
   var out = pages.map((p) => checkOut(p, treeLookup, harvestLookup));
   // Newest season first, then grove order (T1, T2 … not T1, T10).
   var order = new Map(Array.from(treeLookup.values()).map((t, i) => [t.id, i]));
@@ -381,10 +410,6 @@ function seasonSummaries(harvests) {
       ratio: oil > 0 ? Math.round((olives / oil) * 10) / 10 : null
     };
   });
-}
-function monthInRange(month, start, end) {
-  if (start <= end) return start <= month && month <= end;
-  return month >= start || month <= end;
 }
 
 // ---- CSV ----
@@ -530,6 +555,11 @@ async function handleHarvests(method, parts, event) {
     if (method === 'POST') {
       var d = await requireOwner(event); if (d) return json(d[0], { detail: d[1] });
       var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
+      if (!body.task_id) {
+        // New presses inherit the task link of the latest harvest (no picker).
+        var prev = (await fetchAllHarvests()).find((h) => h.task_id);
+        if (prev) body.task_id = prev.task_id;
+      }
       var page = await notion.pages.create({ parent: { database_id: DB.harvests }, properties: harvestProps(body) });
       var pressData = { date: body.date, kind: 'press', amount_kg: body.oil_kg,
         notes: 'Pressing of ' + formatNum(body.olives_kg) + 'kg olives' };
@@ -637,6 +667,11 @@ async function handleChecks(method, parts, event) {
 
 const OUT_KINDS = { gift: 1, home: 1, sale: 1 };
 const VALID_KINDS = { gift: 1, home: 1, sale: 1, adjustment: 1 };
+// Outflows are stored negative whatever sign was typed; adjustments keep theirs.
+function signedAmount(kind, amount) {
+  var a = Number(amount);
+  return OUT_KINDS[kind] ? -Math.abs(a) : a;
+}
 
 async function handleOil(method, parts, event) {
   if (parts.length < 2) return json(404, { detail: 'not found' });
@@ -650,8 +685,7 @@ async function handleOil(method, parts, event) {
         var d = await requireOwner(event); if (d) return json(d[0], { detail: d[1] });
         var body = parseBody(event); if (body == null) return json(400, { detail: 'Invalid body' });
         if (!VALID_KINDS[body.kind]) return json(422, { detail: 'Invalid kind' });
-        var amount = Number(body.amount_kg);
-        if (OUT_KINDS[body.kind]) amount = -Math.abs(amount);
+        var amount = signedAmount(body.kind, body.amount_kg);
         var payload = { date: body.date, kind: body.kind, amount_kg: amount, notes: body.notes || '' };
         var page = await notion.pages.create({ parent: { database_id: DB.oil }, properties: oilProps(payload, null) });
         return json(201, oilOut(page));
@@ -660,6 +694,18 @@ async function handleOil(method, parts, event) {
     }
     var pid = parts[2];
     if (!isPageId(pid)) return json(400, { detail: 'Bad id' });
+    if (method === 'PUT') {
+      var d3 = await requireOwner(event); if (d3) return json(d3[0], { detail: d3[1] });
+      var b3 = parseBody(event); if (b3 == null) return json(400, { detail: 'Invalid body' });
+      if (!VALID_KINDS[b3.kind]) return json(422, { detail: 'Invalid kind' });
+      try {
+        var cur = await notion.pages.retrieve({ page_id: pid });
+        if (readSelect((cur.properties || {}).Kind) === 'press') return json(400, { detail: 'Press movements are managed via harvests' });
+      } catch (e) { return json(404, { detail: 'Movement not found' }); }
+      var pl = { date: b3.date, kind: b3.kind, amount_kg: signedAmount(b3.kind, b3.amount_kg), notes: b3.notes || '' };
+      var up = await notion.pages.update({ page_id: pid, properties: oilProps(pl, null) });
+      return json(200, oilOut(up));
+    }
     if (method === 'DELETE') {
       var d1 = await requireOwner(event); if (d1) return json(d1[0], { detail: d1[1] });
       try {
@@ -705,31 +751,16 @@ async function handleTasks(method, parts, event) {
   return json(405, { detail: 'method not allowed' });
 }
 
+// Task status (due / done / coming up) is computed in the browser, in local time.
 async function handleDashboard() {
-  var trees = await fetchAllTrees();
-  var harvests = await fetchAllHarvests();
-  var oil = await fetchAllOil();
-  var tasks = await fetchAllTasks();
-  var activities = await fetchAllActivities();
-  var today = new Date();
-  var iso = today.toISOString().slice(0, 10);
-  var month = today.getUTCMonth() + 1;
-  var nm1 = (month % 12) + 1;
-  var nm2 = ((month + 1) % 12) + 1;
-  var active = [], upcoming = [];
-  for (var i = 0; i < tasks.length; i++) {
-    var t = tasks[i];
-    if (monthInRange(month, t.start_month, t.end_month)) active.push(t);
-    else if (t.start_month === nm1 || t.start_month === nm2) upcoming.push(t);
-  }
+  var pg = await loadPages(['trees', 'harvests', 'oil', 'tasks', 'activities']);
+  var trees = pg.trees.map(treeOut);
   return json(200, {
-    today: iso,
     tree_count: trees.filter((t) => t.status === 'active').length,
-    seasons: seasonSummaries(harvests),
-    oil: oilBalance(oil),
-    active_tasks: active,
-    upcoming_tasks: upcoming,
-    recent_activities: activities.slice(0, 5)
+    seasons: seasonSummaries(pg.harvests.map(harvestOut)),
+    oil: oilBalance(pg.oil.map(oilOut)),
+    tasks: attachDoneDates(pg.tasks.map(taskOut).sort(byStartMonth), pg.activities, pg.harvests),
+    recent_activities: buildActivities(pg.trees, pg.activities, pg.tasks).slice(0, 5)
   });
 }
 
@@ -822,3 +853,6 @@ exports.handler = async (event) => {
     return json(500, { detail: String((err && err.message) || err) });
   }
 };
+
+// Pure helpers, exported for tests/api.test.js only.
+exports._internals = { buildActivities, attachDoneDates, signedAmount, harvestProps };

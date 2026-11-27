@@ -30,10 +30,13 @@ function loadGis() {
   return gisPromise;
 }
 
-export default function LoginModal({ onClose }) {
+// onClose(true) after a successful sign-in, onClose(false) when dismissed.
+export default function LoginModal({ onClose, message }) {
   const { loginWithGoogle } = useAuth();
   const [error, setError] = useState('');
   const buttonRef = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (!CLIENT_ID) {
@@ -47,10 +50,11 @@ export default function LoginModal({ onClose }) {
         if (cancelled || !buttonRef.current) return;
         window.google.accounts.id.initialize({
           client_id: CLIENT_ID,
+          auto_select: true,
           callback: async ({ credential }) => {
             try {
               await loginWithGoogle(credential);
-              onClose();
+              closeRef.current(true);
             } catch (err) {
               setError(err.message);
             }
@@ -62,6 +66,7 @@ export default function LoginModal({ onClose }) {
           size: 'large',
           text: 'signin_with',
         });
+        window.google.accounts.id.prompt();
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);
@@ -70,12 +75,13 @@ export default function LoginModal({ onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [loginWithGoogle, onClose]);
+  }, [loginWithGoogle]);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={() => onClose(false)}>
       <div className="modal-box card" onClick={(e) => e.stopPropagation()}>
         <h2>Owner login</h2>
+        {message && <p className="sub" style={{ marginBottom: 10 }}>{message}</p>}
         <div ref={buttonRef} />
         {error && <p className="error">{error}</p>}
       </div>

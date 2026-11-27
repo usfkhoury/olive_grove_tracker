@@ -11,7 +11,7 @@ import useSaveState from './useSaveState.js';
 // show derived data alongside the list (e.g. Oil's balance, Harvest's seasons).
 // It's held in a ref so passing an inline function never re-triggers the fetch.
 //
-// create/remove never throw: create returns the created item or null, remove
+// create/update/remove never throw: create/update return the item or null, remove
 // returns true/false, and `error` is set on failure. Pages branch on the result.
 export default function useCollection(path, { onChange } = {}) {
   const [items, setItems] = useState([]);
@@ -44,6 +44,22 @@ export default function useCollection(path, { onChange } = {}) {
     [path, reload, run],
   );
 
+  const update = useCallback(
+    async (id, body) => {
+      setError('');
+      try {
+        const updated = await run(() => api.put(`${path}/${id}`, body));
+        await reload();
+        onChangeRef.current?.();
+        return updated;
+      } catch (e) {
+        setError(e.message);
+        return null;
+      }
+    },
+    [path, reload, run],
+  );
+
   const remove = useCallback(
     async (id) => {
       setError('');
@@ -60,5 +76,5 @@ export default function useCollection(path, { onChange } = {}) {
     [path, reload],
   );
 
-  return { items, error, setError, reload, create, remove, saving, saved };
+  return { items, error, setError, reload, create, update, remove, saving, saved };
 }

@@ -7,5 +7,8 @@
   "dependencies": {
     "@notionhq/client": "^2.2.15",
     "google-auth-library": "^9.14.1"
+  },
+  "scripts": {
+    "test": "node --test tests/"
   }
 }

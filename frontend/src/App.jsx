@@ -8,13 +8,13 @@ import CalendarPage from './pages/CalendarPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Harvests from './pages/Harvests.jsx';
 import Oil from './pages/Oil.jsx';
+import SeasonSheet from './pages/SeasonSheet.jsx';
 import TreeDetail from './pages/TreeDetail.jsx';
 import Trees from './pages/Trees.jsx';
 
 const NAV = [
   { to: '/', icon: '🏠', label: 'Home' },
   { to: '/trees', icon: '🌳', label: 'Trees' },
-  { to: '/activities', icon: '📝', label: 'Log' },
   { to: '/harvests', icon: '🫒', label: 'Harvest' },
   { to: '/oil', icon: '🛢️', label: 'Oil' },
   { to: '/calendar', icon: '📅', label: 'Calendar' },
@@ -45,7 +45,7 @@ function useTheme() {
 export default function App() {
   const [theme, toggleTheme] = useTheme();
   const [showLogin, setShowLogin] = useState(false);
-  const { isOwner, logout } = useAuth();
+  const { isOwner, expired, logout } = useAuth();
   const location = useLocation();
 
   return (
@@ -87,7 +87,12 @@ export default function App() {
           </button>
         </div>
       </header>
-      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+      {(showLogin || expired) && (
+        <LoginModal
+          message={expired ? 'Your sign-in expired. Sign in again, then tap Save — what you typed is still there.' : ''}
+          onClose={(ok) => { setShowLogin(false); if (!ok && expired) logout(); }}
+        />
+      )}
       <main>
         {/* Key by path so an error on one screen clears when you navigate away. */}
         <ErrorBoundary key={location.pathname}>
@@ -99,6 +104,7 @@ export default function App() {
             <Route path="/harvests" element={<Harvests />} />
             <Route path="/oil" element={<Oil />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/season" element={<SeasonSheet />} />
           </Routes>
         </ErrorBoundary>
       </main>

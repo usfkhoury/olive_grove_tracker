@@ -6,13 +6,14 @@ Live at: https://olives.usfkhoury.com
 
 ## Where the data lives
 
-All data lives in **Notion**, under a parent page called **Olives**, in five databases:
+All data lives in **Notion**, under a parent page called **Olives**, in six databases:
 
 - Trees
 - Activities
 - Harvests
 - Oil movements
 - Seasonal tasks
+- Tree checks (one row per tree per season)
 
 The app reads and writes those databases through the Notion API. There is no separate database to manage.
 

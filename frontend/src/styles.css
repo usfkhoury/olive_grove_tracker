@@ -378,3 +378,56 @@ header.topbar .brand {
   width: min(90vw, 360px);
   padding: 1.5rem;
 }
+/* Season sheet */
+.sheet-scroll { overflow-x: auto; padding: 8px; }
+.sheet { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+.sheet th { text-align: left; font-weight: 600; color: var(--muted); padding: 4px; }
+.sheet td { padding: 3px 4px; border-top: 1px solid var(--olive-pale); }
+.sheet input { width: 4.2em; }
+.sheet select { max-width: 7.5em; }
+.sheet tr.dirty td { background: var(--olive-pale); }
+.sheet-status { width: 1.5em; text-align: center; }
+
+/* Grove map */
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.15); z-index: 40; }
+.tree-sheet { position: fixed; left: 0; right: 0; bottom: calc(60px + env(safe-area-inset-bottom)); z-index: 41;
+  max-width: 760px; margin: 0 auto; background: var(--card); border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2); padding: 14px 16px; }
+.button-link { display: inline-block; background: var(--olive); color: #fff; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+.tree-dot.picked { outline: 3px solid var(--text); outline-offset: 1px; }
+.tree-dot.cur { outline: 3px solid var(--gold); outline-offset: 1px; }
+.tree-dot.heat { background: rgba(74, 93, 35, calc(0.15 + var(--heat) * 0.85)); color: #fff; }
+.tree-dot.nodata { opacity: 0.35; }
+.tree-dot .badge { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); border: 1px solid #fff; }
+.tree-dot { position: relative; border: 0; cursor: pointer; font-family: inherit; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--muted); margin: 6px 0; }
+.map-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+.seg { display: inline-flex; gap: 4px; }
+.seg .chip { border: 0; cursor: pointer; }
+.seg .chip.on { background: var(--olive); color: #fff; }
+
+.chart-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+.chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+
+.mini-map { display: grid; gap: 2px; margin: 6px 0 2px; }
+.mini-map a { height: 11px; border-radius: 50%; background: var(--olive-light); opacity: 0.45; }
+.mini-map a.on { background: var(--gold); opacity: 1; }
+
+.info-btn { background: none; border: 0; padding: 0 2px; color: var(--muted); cursor: pointer; font-size: 0.9em; }
+.info-text { display: block; font-weight: 400; font-size: 0.8rem; color: var(--muted); background: var(--olive-pale); border-radius: 8px; padding: 6px 8px; margin: 4px 0; white-space: normal; }
+
+/* Usage overhaul */
+.stat-big { font-size: 1.8rem; font-weight: 700; color: var(--olive-dark); }
+.bottle-num { width: 4.5em; text-align: center; }
+.month-card > summary { cursor: pointer; list-style: none; }
+.month-card > summary::-webkit-details-marker { display: none; }
+.month-label { font-weight: 700; font-size: 0.85rem; color: var(--muted); margin: 12px 0 4px; }
+.done-chip { border: 0; cursor: pointer; font-family: inherit; }
+.task-history { background: var(--olive-pale); border-radius: 10px; padding: 6px 10px; margin: 4px 0 8px; font-size: 0.85rem; }
+.task-notes > summary { cursor: pointer; }
+.tree-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 0 10px; }
+.tree-nav h1 { margin: 0; }
+.map-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.select-toggle { border: 0; cursor: pointer; font-family: inherit; }
+.log-filters { display: flex; gap: 6px; margin-bottom: 8px; }
+.log-filters select { flex: 1 1 0; min-width: 0; width: auto; }

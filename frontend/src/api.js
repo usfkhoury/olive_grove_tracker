@@ -4,11 +4,20 @@ async function request(method, path, body) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getStoredToken();
   if (token) headers['Authorization'] = 'Bearer ' + token;
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    const err = new Error(method === 'GET'
+      ? 'No connection.'
+      : 'No connection — not saved. Your entry is still in the form; try again when you have signal.');
+    err.status = 0;
+    throw err;
+  }
   if (!res.ok) {
     if ((res.status === 401 || res.status === 403) && method !== 'GET') {
       // Signal AuthContext to clear stored token and drop to read-only mode.
@@ -33,23 +42,4 @@ export default {
   del: (path) => request('DELETE', path),
 };
 
-// Must match the select options on the Notion "Tree checks" DB.
-export const CHECK_OPTIONS = {
-  canopy_density: ['Low', 'Medium', 'High', 'Very high'],
-  fruit_size: ['Small', 'Medium', 'Big'],
-  pruning_planned: ['Skip', 'Light', 'Medium', 'Heavy'],
-};
-
-export const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-// Local date, not UTC — toISOString() would yield yesterday between midnight
-// and ~2-3am Lebanon time. en-CA formats as YYYY-MM-DD.
-export const today = () => new Date().toLocaleDateString('en-CA');
-
-export const fmtDate = (iso) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
+export { CHECK_OPTIONS, MONTHS, today, fmtDate, TANAKE_KG, GLOSSARY } from './constants.js';
