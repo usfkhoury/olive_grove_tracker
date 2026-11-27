@@ -11,8 +11,8 @@ const toRow = (c) => ({
   fruit_size: c?.fruit_size || '',
 });
 
-export default function SeasonSheet({ trees, isOwner, onSaved }) {
-  const [season, setSeason] = useState(new Date().getFullYear());
+// `season` is chosen on the Trees page (shared with the Map).
+export default function SeasonSheet({ trees, season, isOwner, onSaved }) {
   const [harvests, setHarvests] = useState([]);
   const [checks, setChecks] = useState([]);
   const [draft, setDraft] = useState({});
@@ -67,10 +67,6 @@ export default function SeasonSheet({ trees, isOwner, onSaved }) {
     <>
       {error && <p className="error">{error}</p>}
       <div className="sheet-bar">
-        <label className="field" style={{ maxWidth: 120, margin: 0 }}>
-          Season
-          <input type="number" min="2000" max="2100" value={season} onChange={(e) => setSeason(Number(e.target.value))} />
-        </label>
         {isOwner && (
           <button disabled={!dirtyTrees.length} onClick={saveAll}>
             Save {dirtyTrees.length || ''} change{dirtyTrees.length === 1 ? '' : 's'}

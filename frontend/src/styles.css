@@ -481,3 +481,4 @@ header.topbar .brand {
 .sheet td:first-child, .sheet th:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; }
 .sheet-scroll .sheet th, .sheet-scroll .sheet td { padding: 3px 1px; }
 .sheet input { width: 2.8em; padding: 6px 2px; }
+.map-controls select { width: auto; min-width: 0; }

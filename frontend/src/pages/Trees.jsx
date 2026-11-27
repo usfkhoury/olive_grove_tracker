@@ -6,7 +6,7 @@ import useCollection from '../useCollection.js';
 import MapLogForm from '../components/MapLogForm.jsx';
 import TreeSheet from '../components/TreeSheet.jsx';
 import SeasonSheet from '../components/SeasonSheet.jsx';
-import { mapColor, mapLegend, missingFields, pressPalette } from '../lib/sheet.js';
+import { mapColor, mapLegend, pressPalette } from '../lib/sheet.js';
 import { taskStatus } from '../lib/season.js';
 
 const EMPTY = { label: '', row: 1, col: 1, variety: '', planted_year: '', notes: '' };
@@ -25,9 +25,10 @@ export default function Trees() {
   const navigate = useNavigate();
   const params = new URLSearchParams(useLocation().search);
   const focus = params.get('focus');
-  const season = new Date().getFullYear();
 
   const [view, setView] = useState(params.get('view') === 'sheet' ? 'sheet' : 'map');
+  // One season for both Map and Sheet (?season=2025 from a tree page link).
+  const [season, setSeason] = useState(Number(params.get('season')) || new Date().getFullYear());
   const [colorBy, setColorBy] = useState('');
   const [openId, setOpenId] = useState(null);        // tree whose quick card is open
   const [selecting, setSelecting] = useState(false); // select-to-log mode
@@ -48,18 +49,21 @@ export default function Trees() {
     }).catch(() => {});
   }, [season]);
 
+  const [years, setYears] = useState([]);
+  useEffect(() => {
+    api.get('/harvests/seasons').then((ss) => setYears(ss.map((x) => x.year))).catch(() => {});
+  }, []);
+  const seasonOptions = [...new Set([...years, new Date().getFullYear(), season])].sort((x, y) => y - x);
   const checkOf = useMemo(() => new Map(checks.map((c) => [c.tree_id, c])), [checks]);
   const palette = pressPalette(presses);
   const pressColor = new Map(palette.map((p) => [p.id, p.color]));
   const nums = checks.map((c) => c[colorBy]).filter((v) => typeof v === 'number');
   const range = { min: Math.min(...nums), max: Math.max(...nums) };
   const active = trees.filter((t) => t.status === 'active');
-  const missingCount = (f) => active.filter((t) => missingFields(checkOf.get(t.id)).includes(f)).length;
 
   const dotLook = (t) => {
     const c = checkOf.get(t.id);
     if (colorBy === 'press') return c?.press_id ? { style: { background: pressColor.get(c.press_id) } } : { cls: 'nodata' };
-    if (colorBy === 'missing') return { badge: missingFields(c).length > 0 };
     if (colorBy) {
       const m = mapColor(colorBy, c?.[colorBy], range);
       return m ? { cls: 'coloured', style: { background: m.bg, color: m.fg }, value: m.label } : { cls: 'nodata' };
@@ -162,14 +166,16 @@ export default function Trees() {
           <button className={`chip ${view === 'map' ? 'on' : ''}`} onClick={() => setView('map')}>Map</button>
           <button className={`chip ${view === 'sheet' ? 'on' : ''}`} onClick={() => setView('sheet')}>Sheet</button>
         </span>
+        <select value={season} onChange={(e) => setSeason(Number(e.target.value))} aria-label="Season">
+          {seasonOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
         {view === 'map' && (
           <select value={colorBy} onChange={(e) => setColorBy(e.target.value)}>
             <option value="">Colour: none</option>
-            <option value="press">Which press {season}</option>
-            <option value="ripeness">Ripeness {season}</option>
-            <option value="sacks">Sacks {season}</option>
+            <option value="press">Which press</option>
+            <option value="ripeness">Ripeness</option>
+            <option value="sacks">Sacks</option>
             <option value="pruning_planned">Pruning planned</option>
-            <option value="missing">Missing {season} data</option>
           </select>
         )}
         {isOwner && view === 'map' && (
@@ -219,7 +225,6 @@ export default function Trees() {
                   title={t.variety || t.label} onClick={() => tapTree(t)}>
                   <span>{t.label}</span>
                   {look.value && <span className="dot-value">{look.value}</span>}
-                  {look.badge && <span className="badge" />}
                 </button>
               );
             })}
@@ -237,16 +242,10 @@ export default function Trees() {
               <span><i className="legend-nodata" />no press set</span>
             </div>
           )}
-          {colorBy && colorBy !== 'press' && colorBy !== 'missing' && (
+          {colorBy && colorBy !== 'press' && (
             <div className="map-legend">
               {mapLegend(colorBy, range).map((l) => <span key={l.text}><i style={{ background: l.bg }} />{l.text}</span>)}
               <span><i className="legend-nodata" />not entered</span>
-            </div>
-          )}
-          {colorBy === 'missing' && (
-            <div className="map-legend">
-              <span><i style={{ background: 'var(--gold)' }} />something missing</span>
-              <span>sacks: {missingCount('sacks')} · ripeness: {missingCount('ripeness')} · pruning: {missingCount('pruning')} · no check: {missingCount('check')}</span>
             </div>
           )}
           <p className="sub" style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>
@@ -255,7 +254,7 @@ export default function Trees() {
         </>
       )}
 
-      {view === 'sheet' && <SeasonSheet trees={trees} isOwner={isOwner} onSaved={loadChecks} />}
+      {view === 'sheet' && <SeasonSheet trees={trees} season={season} isOwner={isOwner} onSaved={loadChecks} />}
 
       {openId && !selecting && !logFor && (
         <TreeSheet tree={trees.find((t) => t.id === openId)} check={checkOf.get(openId)} isOwner={isOwner}

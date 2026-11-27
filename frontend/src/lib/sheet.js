@@ -78,16 +78,6 @@ export function pressPalette(presses) {
     .map((h, i) => ({ id: h.id, date: h.date, color: PRESS_COLORS[i % PRESS_COLORS.length] }));
 }
 
-// Which season-check fields are still empty for a tree ('check' = no check row at all).
-export function missingFields(check) {
-  if (!check) return ['check'];
-  const out = [];
-  if (check.sacks == null) out.push('sacks');
-  if (check.ripeness == null) out.push('ripeness');
-  if (!check.pruning_planned) out.push('pruning');
-  return out;
-}
-
 // "T1–T13, T20" from tree labels: runs of 3+ consecutive numbers collapse.
 // Labels that aren't T<number> are listed after, as-is.
 export function treeRanges(labels) {

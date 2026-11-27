@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pressSackStats, mapColor, mapLegend, pressPalette, missingFields, PRESS_COLORS } from './sheet.js';
+import { pressSackStats, mapColor, mapLegend, pressPalette, PRESS_COLORS } from './sheet.js';
 
 test('pressSackStats: kg olives per sack per press', () => {
   const checks = [{ press_id: 'p1', sacks: 4 }, { press_id: 'p1', sacks: 6 }, { press_id: 'p2', sacks: null }, { press_id: null, sacks: 3 }];
@@ -55,11 +55,6 @@ test('mapLegend lists one swatch per bucket', () => {
 test('pressPalette: one colour per press date, in date order', () => {
   const p = pressPalette([{ id: 'b', date: '2026-11-15' }, { id: 'a', date: '2026-10-25' }]);
   assert.deepEqual(p, [{ id: 'a', date: '2026-10-25', color: PRESS_COLORS[0] }, { id: 'b', date: '2026-11-15', color: PRESS_COLORS[1] }]);
-});
-test('missingFields lists unset sacks / ripeness / pruning', () => {
-  assert.deepEqual(missingFields({ sacks: null, ripeness: 2, pruning_planned: '' }), ['sacks', 'pruning']);
-  assert.deepEqual(missingFields(undefined), ['check']);
-  assert.deepEqual(missingFields({ sacks: 3, ripeness: 0, pruning_planned: 'Skip' }), []);
 });
 
 import { treeRanges } from './sheet.js';
