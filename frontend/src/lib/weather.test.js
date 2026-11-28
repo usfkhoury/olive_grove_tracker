@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sprayWindows, isSprayTask } from './weather.js';
+import { sprayWindows } from './weather.js';
 
 // 48 hourly points (1–2 Apr 2026); precip/wind as functions of the hour index.
 const hours = (precip, wind, temp = 20) => {
@@ -38,9 +38,4 @@ test('too hot midday splits the window; 1-hour runs are dropped', () => {
   ]);
   const short = sprayWindows(hours((h) => (h % 24 === 8 || h % 24 >= 10 ? 1 : 0), () => 5));
   assert.deepEqual(short, []); // never 2 dry-ahead daylight hours in a row
-});
-test('isSprayTask: names with "spray"', () => {
-  assert.equal(isSprayTask({ name: 'Copper Spray — Post-Harvest (CRITICAL)' }), true);
-  assert.equal(isSprayTask({ name: 'Olive Fruit Fly — Spray' }), true);
-  assert.equal(isSprayTask({ name: 'Harvest & Pressing' }), false);
 });

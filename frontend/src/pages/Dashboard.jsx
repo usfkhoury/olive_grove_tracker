@@ -8,7 +8,6 @@ import SeasonBars from '../components/SeasonBars.jsx';
 import SprayWindow from '../components/SprayWindow.jsx';
 import TaskNotes from '../components/TaskNotes.jsx';
 import { latestWindow, taskStatus } from '../lib/season.js';
-import { isSprayTask } from '../lib/weather.js';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -33,7 +32,6 @@ export default function Dashboard() {
   const year = Number(now.slice(0, 4));
   const withStatus = data.tasks.map((t) => ({ ...t, ...taskStatus(t, now) }));
   const due = withStatus.filter((t) => t.status === 'now');
-  const dueSprays = due.filter(isSprayTask);
   const doneNow = withStatus.filter((t) => t.status === 'done' && latestWindow(t, now).current);
   const soon = withStatus.filter((t) => t.status === 'soon');
   // Tasks whose window has started this calendar year, and how many were logged.
@@ -101,7 +99,7 @@ export default function Dashboard() {
         ))}
         <div style={{ marginTop: 8 }}><Link to="/calendar">Full calendar →</Link></div>
       </div>
-      {dueSprays.length > 0 && <SprayWindow tasks={dueSprays} />}
+      <SprayWindow />
 
       <h2>Harvest History</h2>
       <div className="card">

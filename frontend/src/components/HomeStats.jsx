@@ -12,7 +12,6 @@ export default function HomeStats({ movements, season, tasks }) {
   const stock = flows.reduce((a, r) => a + r.stock, 0);
   const reserve = flows.reduce((a, r) => a + r.reserve, 0);
   const vintages = flows.filter((r) => r.stock > 0.05).sort((a, b) => a.year - b.year);
-  const critical = tasks.due.some((t) => /critical/i.test(t.name));
   const pct = tasks.started ? Math.round((tasks.logged / tasks.started) * 100) : 0;
 
   return (
@@ -61,8 +60,8 @@ export default function HomeStats({ movements, season, tasks }) {
           <div className="home-head"><span>{tasks.year} tasks</span><span aria-hidden="true">›</span></div>
           <div className="home-mid"><b>{tasks.logged}</b> / {tasks.started} logged</div>
           <span className="home-bar wide"><i style={{ width: `${pct}%` }} /></span>
-          <div className={`home-due ${critical ? 'critical' : ''}`}>
-            {tasks.due.length === 0 ? 'Nothing due now' : `${tasks.due.length} due now${critical ? ' · critical' : ''}`}
+          <div className={`home-due ${tasks.due.length ? 'has' : ''}`}>
+            {tasks.due.length === 0 ? 'Nothing due now' : `${tasks.due.length} due now`}
           </div>
         </Link>
       </div>

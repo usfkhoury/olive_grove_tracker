@@ -647,4 +647,4 @@ header.topbar .brand {
 .home-list dd b { color: var(--olive-dark); }
 .home-mid { font-size: 0.95rem; } .home-mid b { font-size: 1.5rem; color: var(--olive-dark); }
 .home-due { font-size: 0.82rem; color: var(--muted); }
-.home-due.critical { color: var(--danger); font-weight: 600; }
+.home-due.has { color: var(--olive-dark); font-weight: 600; }

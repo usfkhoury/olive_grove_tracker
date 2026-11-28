@@ -4,8 +4,6 @@ export const FORECAST_URL =
   'https://api.open-meteo.com/v1/forecast?latitude=33.7227&longitude=35.6396&elevation=915' +
   '&hourly=precipitation,wind_speed_10m,temperature_2m&forecast_days=4&timezone=Asia%2FBeirut';
 
-export const isSprayTask = (task) => /spray/i.test(task.name || '');
-
 // A sprayable hour: daylight 06–17, wind below maxWind km/h (drift), 5–30 °C,
 // and no rain this hour or the next `dryAfter` hours (the spray must dry on).
 // Returns runs of at least minHours on the same day as { start, end }

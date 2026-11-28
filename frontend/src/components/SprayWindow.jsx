@@ -7,8 +7,8 @@ const dayName = (date, todayDate) => (date === todayDate ? 'Today'
   : new Date(`${date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }));
 
 // Good hours to spray in the next 4 days (Open-Meteo forecast for the grove).
-// Shown on Home only while a spray task is due (`tasks` = those due tasks).
-export default function SprayWindow({ tasks }) {
+// Always shown on Home.
+export default function SprayWindow() {
   const [wins, setWins] = useState(null);
   useEffect(() => {
     fetch(FORECAST_URL).then((r) => r.json())
@@ -26,7 +26,6 @@ export default function SprayWindow({ tasks }) {
   return (
     <div className="card spray-card">
       <div className="title">🌤 Spray weather · next 4 days</div>
-      <div className="sub">For: {tasks.map((t) => t.name).join(' · ')}</div>
       {wins === null ? <p className="sub">Loading forecast…</p>
         : upcoming.length === 0 ? <p className="sub">No good window: rain or wind forecast.</p>
           : (
