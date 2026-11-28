@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { today } from '../api.js';
+import { fmtDate, today } from '../api.js';
 import { BOTTLE_L, KG_PER_L, SOAP_BATCH_KG, TANAKE_KG } from '../constants.js';
 import { amountLitres, countPlan, unitText, vintageFlows } from '../lib/oil.js';
 import AmountPicker, { Stepper } from './AmountPicker.jsx';
@@ -195,10 +195,17 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
     ? { T: String(Math.round((reserveKg / TANAKE_KG) * 2) / 2) }
     : { 2.75: String(Math.round(ledgerOf(key) / KG_PER_L / BOTTLE_L)) });
   const [counts, setCounts] = useState({});
-  const [split, setSplit] = useState({}); // year → { gift: bottles, adjustment: bottles }; rest = home
+  const [split, setSplit] = useState({}); // year → { gift, reserve, adjustment } bottles; rest = home
+  const [date, setDate] = useState(today());
   const get = (key) => counts[key] || start(key);
   const counted = Object.fromEntries(Object.entries(counts).map(([k, v]) => [k, amountLitres(v)]));
-  const plan = countPlan(flows, counted, split, today());
+  const plan = countPlan(flows, counted, split, date);
+  // Not before the latest year counted was pressed, or the entry would use up older oil.
+  const minDate = plan.reduce((d, p) => {
+    const first = movements.filter((m) => m.kind === 'press' && Number(m.date.slice(0, 4)) === p.vintage)
+      .map((m) => m.date).sort()[0];
+    return first && first > d ? first : d;
+  }, '');
   const setPart = (key, kind) => (v) => setSplit((x) => ({ ...x, [key]: { ...x[key], [kind]: v } }));
 
   const describe = (key) => {
@@ -261,6 +268,13 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
       <div className="field">Count what's at home <Info term="adjustment" /></div>
       {years.map((y) => row(String(y), `${y} oil`))}
       {showReserve && row('reserve', <>Soap reserve <Info term="soapReserve" /></>)}
+      {plan.length > 0 && (
+        <label className="field">
+          Date for these entries
+          <input type="date" required value={date} min={minDate || undefined} max={today()} onChange={(e) => setDate(e.target.value)} />
+          <span className="sub">The day you counted, or roughly when the oil went (e.g. end of 2025){minDate ? `, not before ${fmtDate(minDate)} (pressing)` : ''}.</span>
+        </label>
+      )}
       <button type="submit" disabled={saving || plan.length === 0}>
         {saving ? 'Saving…' : plan.length ? `Save ${plan.length} entr${plan.length > 1 ? 'ies' : 'y'}` : 'Nothing to save yet'}
       </button>
