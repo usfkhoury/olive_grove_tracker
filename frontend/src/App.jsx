@@ -50,8 +50,22 @@ export default function App() {
     const on = (e) => setOffline(e.detail);
     window.addEventListener(OFFLINE_EVENT, on);
     // Offline reading at the grove (public/sw.js). Production builds only.
-    if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('/sw.js');
-    return () => window.removeEventListener(OFFLINE_EVENT, on);
+    // With signal, ask it to save every page's data in the background (at
+    // most every 10 min), so pages never opened still work offline.
+    const warm = () => {
+      const last = Number(localStorage.getItem('oliveWarmAt') || 0);
+      if (!navigator.onLine || Date.now() - last < 10 * 60 * 1000) return;
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.active?.postMessage('warm');
+        localStorage.setItem('oliveWarmAt', String(Date.now()));
+      });
+    };
+    if ('serviceWorker' in navigator && import.meta.env.PROD) {
+      navigator.serviceWorker.register('/sw.js');
+      warm();
+      window.addEventListener('online', warm);
+    }
+    return () => { window.removeEventListener(OFFLINE_EVENT, on); window.removeEventListener('online', warm); };
   }, []);
   const { isOwner, expired, logout } = useAuth();
   const location = useLocation();

@@ -56,7 +56,11 @@ Harvest oil kg are weighed; Harvest Tanake = oil kg ÷ 16.
 
 **Offline reading:** `frontend/public/sw.js` (registered from `App.jsx`, production
 builds only). Page loads and API GETs are network-first with the last good copy
-as fallback (marked `X-Olive-Offline: 1`, which shows the no-signal banner);
+as fallback (marked `X-Olive-Offline: 1`, which shows the no-signal banner).
+With signal, the app posts `'warm'` (at most every 10 min) and the worker saves
+the full lists in `WARM` (`frontend/public/sw-offline.js`); per-tree / per-season
+URLs never opened online are derived from them (`derive`, tested in
+`frontend/src/lib/swOffline.test.js`). Add new GET endpoints to `WARM`;
 `/assets/*` cache-first; writes, `/api/export/*` and `/api/auth/*` are never
 cached. Bump `VERSION` in `sw.js` to drop old caches.
 
