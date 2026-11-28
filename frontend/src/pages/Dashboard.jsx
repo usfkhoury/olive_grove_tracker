@@ -56,9 +56,10 @@ export default function Dashboard() {
 
       <div className="stat-grid">
         <div className="stat">
-          <div className="value">{data.oil.balance_kg} kg</div>
+          <div className="value">{data.oil.stock_kg} kg</div>
           <div className="label">
-            oil in stock (~{data.oil.balance_tanake} tanake / {data.oil.balance_liters} L)
+            olive oil in stock (~{data.oil.stock_tanake} tanake / {data.oil.stock_liters} L)
+            {data.oil.soap_reserve_kg > 0 && <> · + {data.oil.soap_reserve_kg} kg soap reserve</>}
           </div>
         </div>
         {latest && (

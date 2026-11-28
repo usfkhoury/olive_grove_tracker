@@ -29,5 +29,5 @@ export const GLOSSARY = {
   ripeness: 'Jaén scale from skin and flesh colour: 0 deep green · 1 yellow-green · 2 green with red spots on under half the skin · 3 red/purple on over half · 4 black skin, white flesh · 5 black, flesh under half purple · 6 black, flesh over half purple · 7 purple to the stone. Khadir target ≈ 1.5–2.5.',
   sacks: 'كيس جنفاص — big jute sacks filled from this tree, about 40 kg of olives each. The only per-tree yield measure, since each press mixes many trees.',
   adjustment: 'A correction after counting the bottles at home: the difference between what the ledger says and what is really there.',
-  soapReserve: 'Oil set aside at home for making soap (usually old leftovers). It is still in stock but not counted as cooking oil. Making soap uses the reserve first.',
+  soapReserve: 'Oil set aside at home for making soap (usually old leftovers). It stays at home but is kept apart from the olive oil in stock. Making soap uses the reserve first.',
 };

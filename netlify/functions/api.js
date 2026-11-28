@@ -387,27 +387,28 @@ function isPageId(s) { return typeof s === 'string' && PAGE_ID_RE.test(s); }
 const TANAKE_KG = 16.0;
 const OIL_DENSITY = 0.915;
 
-// Stock at home, split into cooking oil and the soap reserve. A `reserve` row
-// moves oil from cooking to the reserve (total unchanged); a `soap` row uses
-// the reserve first and takes any remainder from cooking oil.
+// Oil at home = olive oil in stock + the soap reserve. A `reserve` row moves
+// oil from stock to the reserve (total unchanged); a `soap` row uses the
+// reserve first and takes any remainder from stock. Tanake / litres describe
+// the stock (the reserve is reported in kg).
 function oilBalance(rows) {
   var sorted = rows.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-  var cooking = 0, reserve = 0;
+  var stock = 0, reserve = 0;
   for (var i = 0; i < sorted.length; i++) {
     var m = sorted[i], a = m.amount_kg || 0;
-    if (m.kind === 'reserve') { cooking += a; reserve -= a; }
+    if (m.kind === 'reserve') { stock += a; reserve -= a; }
     else if (m.kind === 'soap') {
       var fromReserve = Math.min(reserve, -a);
-      reserve -= fromReserve; cooking += a + fromReserve;
-    } else cooking += a;
+      reserve -= fromReserve; stock += a + fromReserve;
+    } else stock += a;
   }
-  var r2 = (n) => Math.round(n * 100) / 100, bal = cooking + reserve;
+  var r2 = (n) => Math.round(n * 100) / 100, bal = stock + reserve;
   return {
     balance_kg: r2(bal),
-    cooking_kg: r2(cooking),
+    stock_kg: r2(stock),
     soap_reserve_kg: r2(reserve),
-    balance_tanake: r2(bal / TANAKE_KG),
-    balance_liters: Math.round((bal / OIL_DENSITY) * 10) / 10
+    stock_tanake: r2(stock / TANAKE_KG),
+    stock_liters: Math.round((stock / OIL_DENSITY) * 10) / 10
   };
 }
 function seasonSummaries(harvests) {

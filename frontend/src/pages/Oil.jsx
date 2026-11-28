@@ -33,7 +33,7 @@ export default function Oil() {
   const pickUnit = (u) => { setUnit(u); try { localStorage.setItem('oilUnit', u); } catch { /* private mode */ } };
 
   const flows = vintageFlows(movements);
-  const cooking = flows.reduce((a, r) => a + r.stock, 0);
+  const stock = flows.reduce((a, r) => a + r.stock, 0);
   const reserve = flows.reduce((a, r) => a + r.reserve, 0);
   const vintages = flows.filter((r) => r.stock > 0.05).sort((a, b) => a.year - b.year);
   const reserveBy = flows.filter((r) => r.reserve > 0.05).sort((a, b) => a.year - b.year);
@@ -70,8 +70,8 @@ export default function Oil() {
       {saved && <p className="saved">Saved ✓</p>}
 
       <div className="card">
-        <div className="stat-big">{unitText(cooking, unit)}</div>
-        <div className="sub">cooking oil at home · {r1(cooking)} kg (by the ledger)</div>
+        <div className="stat-big">{unitText(stock, unit)}</div>
+        <div className="sub">olive oil in stock · {r1(stock)} kg (by the ledger)</div>
         {vintages.length > 0 && (
           <div style={{ marginTop: 8 }}>
             {vintages.map((v, i) => (

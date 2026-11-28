@@ -177,7 +177,7 @@ function MakeSoap({ flows, reserveKg, batches, movements, editing, saving, save 
       {n > 0 && (
         <p className="preview">
           {fromReserve > 0 ? `${r2(fromReserve)} kg from the soap reserve` : 'Soap reserve is empty'}
-          {n - fromReserve > 0.05 && `${fromReserve > 0 ? ' + ' : ' — '}${r2(n - fromReserve)} kg from cooking oil${oldest ? ` (${oldest.year} first)` : ''}`}
+          {n - fromReserve > 0.05 && `${fromReserve > 0 ? ' + ' : ' — '}${r2(n - fromReserve)} kg from the oil in stock${oldest ? ` (${oldest.year} first)` : ''}`}
         </p>
       )}
       <button type="submit" disabled={saving || n <= 0}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Save'}</button>
@@ -220,7 +220,7 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
     save(plan.map((p) => {
       const key = p.vintage ?? 'reserve';
       const what = key === 'reserve'
-        ? (p.kind === 'soap' ? 'used for soap, not logged before' : 'moved from cooking oil, not logged before')
+        ? (p.kind === 'soap' ? 'used for soap, not logged before' : 'moved from the oil in stock, not logged before')
         : (p.amount_kg < 0 ? `${WHAT[p.kind]}, not logged before` : 'more than the ledger');
       const name = key === 'reserve' ? 'soap reserve' : `${key} oil`;
       return { ...p, notes: `Stock count of ${name}: ${describe(key)} = ${counted[key]} L; ledger said ${r2(ledgerOf(key) / KG_PER_L)} L (${what})` };
@@ -243,7 +243,7 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
           {!touched ? 'Not counted yet. Use − / + to set what is really there.'
             : !p ? `Counted ${counted[key]} L · matches the ledger`
               : `Counted ${counted[key]} L · ${key === 'reserve'
-                ? (p.kind === 'soap' ? `${r2(diffKg)} kg less: recorded as soap made` : `${r2(diffKg)} kg more: recorded as moved from cooking oil`)
+                ? (p.kind === 'soap' ? `${r2(diffKg)} kg less: recorded as soap made` : `${r2(diffKg)} kg more: recorded as moved from the oil in stock`)
                 : p.amount_kg < 0 ? `${r1(diffKg / KG_PER_L)} L (${unitText(diffKg, 'B')}) less than the ledger`
                   : `${r1(diffKg / KG_PER_L)} L more than the ledger`}`}
         </div>

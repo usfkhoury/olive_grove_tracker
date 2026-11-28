@@ -41,9 +41,10 @@ Oil movements: Kind (`press` / `home` / `gift` / `sale` / `soap` / `reserve` /
 `adjustment`), Amount kg (signed; out-kinds stored negative), optional
 **Vintage** (pressing year the oil belongs to; set by the Update stock panel),
 optional **Soap batch** relation → the soap app's Soap Batches DB.
-`reserve` moves cooking oil into the soap reserve (total stock unchanged);
-`soap` uses the reserve first, then cooking oil. `GET /oil/summary` returns
-`balance_kg`, `cooking_kg`, `soap_reserve_kg`. `GET /soap/batches` lists the
+`reserve` moves oil from stock into the soap reserve (total at home unchanged);
+`soap` uses the reserve first, then the stock. `GET /oil/summary` returns
+`balance_kg` (total at home) = `stock_kg` (olive oil in stock) +
+`soap_reserve_kg`, plus `stock_tanake` / `stock_liters`. `GET /soap/batches` lists the
 soap app's batches, found through the Soap batch relation (no env var).
 Per-year breakdown (`vintageFlows`, `frontend/src/lib/oil.js`): tagged
 movements hit their vintage first, untagged ones the oldest oil.

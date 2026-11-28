@@ -72,13 +72,13 @@ test('vintageFlows: a movement with a vintage drains that year, not the oldest',
   assert.equal(v.find((r) => r.year === 2025).added, 4);
   assert.deepEqual(stockByVintage(mvs), [{ year: 2025, kg: 104 }, { year: 2026, kg: 40 }]);
 });
-test('vintageFlows: soap reserve keeps its vintage; soap uses the reserve, then cooking oil', () => {
+test('vintageFlows: soap reserve keeps its vintage; soap uses the reserve, then the stock', () => {
   const mvs = [
     { date: '2024-10-19', kind: 'press', amount_kg: 40 },
     { date: '2025-11-02', kind: 'press', amount_kg: 100 },
     { date: '2025-11-03', kind: 'reserve', amount_kg: -10, vintage: 2024 }, // 2024 leftovers → reserve
-    { date: '2026-06-20', kind: 'soap', amount_kg: -16 },                   // 10 reserve(2024) + 6 cooking(2024)
-    { date: '2026-07-01', kind: 'soap', amount_kg: -5, vintage: 2025 },     // no 2025 reserve → 2025 cooking
+    { date: '2026-06-20', kind: 'soap', amount_kg: -16 },                   // 10 reserve(2024) + 6 stock(2024)
+    { date: '2026-07-01', kind: 'soap', amount_kg: -5, vintage: 2025 },     // no 2025 reserve → 2025 stock
   ];
   const v = vintageFlows(mvs);
   assert.deepEqual(v.find((r) => r.year === 2024), { ...zero, year: 2024, pressed: 40, soap: 16, stock: 24 });
@@ -103,7 +103,7 @@ test('countPlan: one entry per year that differs, tagged with its vintage', () =
   const more = countPlan(flows, { 2026: 210 }, {}, '2026-11-28');
   assert.deepEqual(more, [{ date: '2026-11-28', kind: 'adjustment', amount_kg: 5.15, vintage: 2026 }]);
 });
-test('countPlan: soap reserve count — less = soap made, more = moved from cooking oil', () => {
+test('countPlan: soap reserve count — less = soap made, more = moved from stock', () => {
   const flows = [{ year: 2025, stock: 100, reserve: 12 }, { year: 2024, stock: 0, reserve: 4 }];
   assert.deepEqual(countPlan(flows, { reserve: 10 }, {}, '2026-11-28'),
     [{ date: '2026-11-28', kind: 'soap', amount_kg: -6.85 }]);   // 10 L = 9.15 kg vs 16 kg

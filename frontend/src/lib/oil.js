@@ -13,7 +13,7 @@ export function bottlesToLiters(counts, tanake = 0) {
   return r2(bottled + (Number(tanake) || 0) * TANAKE_L);
 }
 
-// Cooking oil left per pressing year, oldest first (see vintageFlows).
+// Olive oil in stock per pressing year, oldest first (see vintageFlows).
 export function stockByVintage(movements) {
   return vintageFlows(movements).filter((r) => r.stock > 0.05)
     .map((r) => ({ year: r.year, kg: r.stock })).sort((a, b) => a.year - b.year);
@@ -36,11 +36,11 @@ export function inUnit(kg, unit) {
 
 // Per pressing year, where its oil went (kg). For every year:
 //   pressed + added = home + gift + sale + lost + soap + reserve + stock
-// stock = cooking oil left, reserve = set aside for soap (both still at home).
+// stock = olive oil in stock, reserve = set aside for soap (both at home).
 // A movement tagged with a vintage applies to that year's oil first; the rest
-// (and untagged movements) drain the oldest oil. `reserve` moves cooking oil
+// (and untagged movements) drain the oldest oil. `reserve` moves oil in stock
 // into the soap reserve of the same year; `soap` uses the reserve, then
-// cooking oil. Newest year first.
+// the stock. Newest year first.
 export function vintageFlows(movements) {
   const lots = new Map();
   const lot = (year) => {
@@ -83,7 +83,7 @@ export function vintageFlows(movements) {
 // A year's shortfall is split per `split[year]` = { gift, reserve (moved to the
 // soap reserve), adjustment (lost) }, in 2.75 L bottles, capped at the
 // shortfall; the rest is home use. A surplus is a + adjustment. All tagged with the vintage. The soap
-// reserve: less than the ledger = soap made; more = cooking oil moved into it.
+// reserve: less than the ledger = soap made; more = oil moved into it from stock.
 // Differences under 0.05 kg are skipped.
 export function countPlan(flows, counted, split, date) {
   const out = [];
