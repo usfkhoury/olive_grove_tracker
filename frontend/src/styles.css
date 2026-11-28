@@ -575,12 +575,13 @@ header.topbar .brand {
 .update-btn { width: 100%; margin-top: 12px; }
 
 /* Soap reserve on the stock card */
-.reserve { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hairline); font-size: 0.88rem; }
+.reserve-box { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hairline); font-size: 0.88rem; }
 .reserve-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .reserve-bar { height: 8px; border-radius: 4px; background: var(--olive-pale); overflow: hidden; margin-bottom: 4px; }
-.reserve-bar span { display: block; height: 100%; background: #8a6fa8; border-radius: 4px; }
-.flow-seg.soap, .flow-key.soap { background: #8a6fa8; }
-.flow-seg.reserve, .flow-key.reserve { background: repeating-linear-gradient(45deg, #8a6fa8 0 3px, #d9cfe6 3px 6px); }
+.reserve-bar span { display: block; height: 100%; background: #b49ad6; border-radius: 4px; }
+.flow-seg.soap, .flow-key.soap { background: #6f4f96; }
+.flow-seg.reserve, .flow-key.reserve { background: #b49ad6; }
+.flow-seg.reserve, .flow-seg.soap { min-width: 6px; }
 .amount.move { color: #8a6fa8; }
 
 /* Update stock panel */

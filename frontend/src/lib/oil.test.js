@@ -137,3 +137,16 @@ test('countPlan: a shortfall split in bottles between gifts / lost, the rest hom
   const all = countPlan(flows, { 2025: 13.75 }, { 2025: { gift: 50 } }, '2026-11-28');
   assert.deepEqual(all, [{ date: '2026-11-28', kind: 'gift', amount_kg: -92.92, vintage: 2025 }]);
 });
+test('countPlan: part of a shortfall can go to the soap reserve (moved, not used)', () => {
+  const flows = [{ year: 2025, stock: 105.5, reserve: 0 }];
+  // 92.92 kg short: 2 bottles to the soap reserve = 5.03 kg, 10 gifts = 25.16 kg, rest home
+  const plan = countPlan(flows, { 2025: 13.75 }, { 2025: { gift: 10, reserve: 2 } }, '2026-11-28');
+  assert.deepEqual(plan, [
+    { date: '2026-11-28', kind: 'home', amount_kg: -62.73, vintage: 2025 },
+    { date: '2026-11-28', kind: 'gift', amount_kg: -25.16, vintage: 2025 },
+    { date: '2026-11-28', kind: 'reserve', amount_kg: -5.03, vintage: 2025 },
+  ]);
+  const v = vintageFlows([{ date: '2025-11-02', kind: 'press', amount_kg: 105.5 }, ...plan]);
+  assert.equal(v[0].reserve, 5.03);
+  assert.equal(v[0].stock, 12.58);
+});

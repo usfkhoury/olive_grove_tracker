@@ -9,7 +9,8 @@ const r2 = (n) => Math.round(n * 100) / 100;
 const r1 = (n) => Math.round(n * 10) / 10;
 const kgOf = (litres) => r2(litres * KG_PER_L);
 const OUT_FOR = [['home', '🏠 Home'], ['gift', '🎁 Gift'], ['sale', '💰 Sale'], ['reserve', '🧼 Soap reserve']];
-const WHAT = { home: 'home use', gift: 'gifts', adjustment: 'lost / spilled' };
+const WHAT = { home: 'home use', gift: 'gifts', reserve: 'moved to the soap reserve', adjustment: 'lost / spilled' };
+const SPLIT = [['gift', '🎁 Gifts'], ['reserve', '🧼 Soap reserve'], ['adjustment', 'Lost / spilled']];
 const NOTE_HINT = { home: 'Optional', gift: 'Who to, e.g. Amto', sale: 'Who / price', reserve: 'e.g. 2024 leftovers' };
 
 // kg → picker value: whole 2.75 L bottles when it fits, else loose litres.
@@ -236,18 +237,18 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
             : !p ? `Counted ${counted[key]} L · matches the ledger`
               : `Counted ${counted[key]} L · ${key === 'reserve'
                 ? (p.kind === 'soap' ? `${r2(diffKg)} kg less: recorded as soap made` : `${r2(diffKg)} kg more: recorded as moved from cooking oil`)
-                : p.amount_kg < 0 ? `${r1(diffKg / KG_PER_L)} L (${unitText(diffKg, 'B')}) went out unlogged`
+                : p.amount_kg < 0 ? `${r1(diffKg / KG_PER_L)} L (${unitText(diffKg, 'B')}) less than the ledger`
                   : `${r1(diffKg / KG_PER_L)} L more than the ledger`}`}
         </div>
         {short && (
           <div className="split">
-            <div className="sub">Where did they go? Whatever you don't assign counts as home use.</div>
+            <div className="sub">Where did they go? In 2.75 L bottles; whatever you don't assign counts as home use.</div>
             <div className="amount-row"><span>🏠 Home use</span><b>{unitText(-homeKg, 'B').replace('≈ ', '')}</b></div>
-            <div className="amount-row"><span>🎁 Gifts (bottles)</span>
-              <Stepper value={split[key]?.gift ?? ''} onChange={setPart(key, 'gift')} label={`${key} gifts`} /></div>
-            <div className="amount-row"><span>Lost / spilled (bottles)</span>
-              <Stepper value={split[key]?.adjustment ?? ''} onChange={setPart(key, 'adjustment')} label={`${key} lost`} /></div>
-            {missing > 0 && (Number(split[key]?.gift) || 0) + (Number(split[key]?.adjustment) || 0) > missing && (
+            {SPLIT.map(([kind, label]) => (
+              <div className="amount-row" key={kind}><span>{label}</span>
+                <Stepper value={split[key]?.[kind] ?? ''} onChange={setPart(key, kind)} label={`${key} ${label}`} /></div>
+            ))}
+            {missing > 0 && SPLIT.reduce((a, [kind]) => a + (Number(split[key]?.[kind]) || 0), 0) > missing && (
               <div className="sub warn">Only ≈ {missing} bottles are missing; the extra is ignored.</div>
             )}
           </div>

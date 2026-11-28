@@ -82,7 +82,7 @@ export default function Oil() {
           </div>
         )}
         {soapTracked && (
-          <div className="reserve">
+          <div className="reserve-box">
             <div className="reserve-top">
               <span>🧼 Soap reserve <Info term="soapReserve" /></span>
               <b>{r1(reserve)} kg <span className="sub">of {SOAP_BATCH_KG} kg for a batch</span></b>
