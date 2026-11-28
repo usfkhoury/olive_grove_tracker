@@ -830,14 +830,11 @@ async function handleSoapBatches() {
 }
 
 async function handleDashboard() {
-  var pg = await loadPages(['trees', 'harvests', 'oil', 'tasks', 'activities']);
-  var trees = pg.trees.map(treeOut);
+  var pg = await loadPages(['harvests', 'oil', 'tasks', 'activities']);
   return json(200, {
-    tree_count: trees.filter((t) => t.status === 'active').length,
     seasons: seasonSummaries(pg.harvests.map(harvestOut)),
     oil: oilBalance(pg.oil.map(oilOut)),
-    tasks: attachDoneDates(pg.tasks.map(taskOut).sort(byStartMonth), pg.activities, pg.harvests),
-    recent_activities: buildActivities(pg.trees, pg.activities, pg.tasks).slice(0, 5)
+    tasks: attachDoneDates(pg.tasks.map(taskOut).sort(byStartMonth), pg.activities, pg.harvests)
   });
 }
 

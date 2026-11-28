@@ -4,7 +4,6 @@ import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
 import HomeStats from '../components/HomeStats.jsx';
 import LogTaskForm from '../components/LogTaskForm.jsx';
-import SeasonBars from '../components/SeasonBars.jsx';
 import SprayWindow from '../components/SprayWindow.jsx';
 import TaskNotes from '../components/TaskNotes.jsx';
 import { latestWindow, taskStatus } from '../lib/season.js';
@@ -100,39 +99,6 @@ export default function Dashboard() {
         <div style={{ marginTop: 8 }}><Link to="/calendar">Full calendar →</Link></div>
       </div>
       <SprayWindow />
-
-      <h2>Harvest History</h2>
-      <div className="card">
-        <SeasonBars seasons={data.seasons} />
-      </div>
-
-      <h2>Recent Activity</h2>
-      <div className="card">
-        {data.recent_activities.length === 0 && (
-          <p className="empty">Nothing logged yet.</p>
-        )}
-        {data.recent_activities.map((a) => (
-          <div className="item" key={a.id}>
-            <div>
-              <div className="title">{a.label}</div>
-              <div className="sub">
-                {fmtDate(a.date)}
-                {a.trees.length > 0
-                  ? ` — ${a.trees.map((t) => t.label).join(', ')}`
-                  : ' — whole grove'}
-              </div>
-              {a.notes && (
-                <div className="sub" style={{ whiteSpace: 'pre-line', marginTop: 4 }}>
-                  {a.notes}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        <div style={{ marginTop: 8 }}>
-          <Link to="/activities">All activity →</Link>
-        </div>
-      </div>
 
       <details className="card" style={{ marginTop: 16 }}>
         <summary>Export & backup</summary>

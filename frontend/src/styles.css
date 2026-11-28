@@ -235,23 +235,6 @@ button.small { padding: 6px 10px; font-size: 0.8rem; }
 .month-card h3 { margin: 0 0 6px; font-size: 0.95rem; }
 .month-card .none { color: var(--muted); font-size: 0.8rem; }
 
-/* ---------- season bars ---------- */
-.bar-row {
-  display: grid;
-  grid-template-columns: 40px 1fr 96px;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 0.78rem;
-}
-.bar-year { color: var(--muted); font-weight: 600; }
-.bar-track { position: relative; height: 18px; background: var(--olive-pale); border-radius: 4px; }
-.bar-olives, .bar-oil { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
-.bar-olives { background: var(--olive-light); }
-.bar-oil { background: var(--olive-dark); border-radius: 4px 0 0 4px; }
-.bar-label { text-align: right; color: var(--muted); white-space: nowrap; }
-.bar-legend { font-size: 0.72rem; color: var(--muted); margin-top: 6px; }
-
 /* ---------- season cards ---------- */
 .season-head {
   display: flex;
