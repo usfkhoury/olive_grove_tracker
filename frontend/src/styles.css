@@ -494,6 +494,9 @@ header.topbar .brand {
 .chart-legend .hc-olives-key { background: var(--olive-light); opacity: 0.55; border-radius: 3px; }
 .chart-legend .hc-oil-key { background: var(--olive-dark); border-radius: 3px; }
 .chart-legend .hc-best-key { background: var(--gold); }
+.hc-tank { fill: var(--chip-gold-bg); }
+.hc-tank-val { font-size: 10px; font-weight: 600; fill: var(--chip-gold-text); text-anchor: middle; font-variant-numeric: tabular-nums; }
+.chart-legend .hc-tank-key { background: var(--chip-gold-bg); border: 1px solid var(--chip-gold-text); border-radius: 4px; box-sizing: border-box; }
 .season-card { scroll-margin-top: 64px; }
 .harvest-chart .chart-legend { font-size: 0.7rem; }
 .harvest-chart .chart-legend i { width: 8px; height: 8px; }

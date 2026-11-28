@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext.jsx';
-import api, { today } from '../api.js';
+import api, { TANAKE_KG, today } from '../api.js';
 import HarvestChart from '../components/HarvestChart.jsx';
 import HarvestForm from '../components/HarvestForm.jsx';
 import useCollection from '../useCollection.js';
@@ -129,7 +129,7 @@ export default function Harvests() {
                   {[
                     ['olives', `${s.olives_kg} kg`],
                     ['oil', `${s.oil_kg} kg`],
-                    ['tanake', s.tanake || '—'],
+                    ['tanake', s.oil_kg ? (s.oil_kg / TANAKE_KG).toFixed(1) : '—'],
                     ['ratio', `${s.ratio} : 1`],
                     ['pressings', s.sessions],
                   ].map(([label, value]) => (

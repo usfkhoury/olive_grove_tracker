@@ -1,15 +1,18 @@
 // All seasons at a glance, two panels sharing the year axis:
 //   top    — olives kg (light bar) and oil kg (dark bar) side by side, labelled
+//   middle — year, then the oil in tanake (16 kg tins) as a pill under it
 //   bottom — ratio x:1 (kg olives per kg oil) with the all-years average
 // Tapping a year calls onSelect(year). `seasons` is oldest first.
 // The SVG is drawn at the container's real pixel width, so text keeps the
 // same size on a phone and on a wide screen instead of scaling up.
 import { useEffect, useRef, useState } from 'react';
+import { TANAKE_KG } from '../constants.js';
 
 const PAD_L = 8, PAD_R = 8;
 const BAR_TOP = 24, BAR_H = 115;       // bar panel
 const YEAR_Y = BAR_TOP + BAR_H + 15;   // year labels
-const R_TOP = YEAR_Y + 26, R_H = 60;   // ratio panel
+const TANK_Y = YEAR_Y + 18;             // tanake pills (centre line)
+const R_TOP = TANK_Y + 30, R_H = 60;   // ratio panel
 const H = R_TOP + R_H + 16;
 
 export default function HarvestChart({ seasons, selected, onSelect }) {
@@ -57,6 +60,8 @@ export default function HarvestChart({ seasons, selected, onSelect }) {
               <text x={x - bw / 2 - 1} y={yKg(s.olives_kg) - 3} className="hc-val">{Math.round(s.olives_kg)}</text>
               <text x={x + bw / 2 + 1} y={yKg(s.oil_kg) - 3} className="hc-val hc-val-oil">{Math.round(s.oil_kg)}</text>
               <text x={x} y={YEAR_Y} className={`hc-year ${on ? 'on' : ''}`}>{s.year}</text>
+              <rect x={x - Math.min(cw - 6, 34) / 2} y={TANK_Y - 8} width={Math.min(cw - 6, 34)} height={16} rx="8" className="hc-tank" />
+              <text x={x} y={TANK_Y + 3.5} className="hc-tank-val">{(s.oil_kg / TANAKE_KG).toFixed(1)}</text>
             </g>
           );
         })}
@@ -80,6 +85,7 @@ export default function HarvestChart({ seasons, selected, onSelect }) {
       <div className="chart-legend">
         <span><i className="hc-olives-key" />olives</span>
         <span><i className="hc-oil-key" />oil</span>
+        <span><i className="hc-tank-key" />oil in tanake (16 kg)</span>
         <span><i className="hc-best-key" />best ratio</span>
         <span style={{ marginLeft: 'auto' }}>tap a year to jump to it</span>
       </div>
