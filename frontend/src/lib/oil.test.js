@@ -89,7 +89,8 @@ test('vintageFlows: soap reserve keeps its vintage; soap uses the reserve, then 
   assert.deepEqual(stockByVintage(mvs.slice(0, 3)), [{ year: 2024, kg: 30 }, { year: 2025, kg: 100 }]);
 });
 test('inUnit: litres, tanake, 2.75 L bottles', () => {
-  assert.equal(inUnit(187, 'L'), 204);
+  assert.equal(inUnit(187, 'L'), 204.4);
+  assert.equal(inUnit(37.04, 'L'), 40.5); // 2 bottles + 2 tanake
   assert.equal(inUnit(187, 'T'), 11.7);
   assert.equal(inUnit(187, 'B'), 74);
   assert.equal(inUnit(2.52, 'B'), 1);
@@ -119,6 +120,6 @@ test('amountLitres: bottles + tins + loose litres', () => {
 test('unitText', () => {
   assert.equal(unitText(187, 'B'), '≈ 74 bottles');
   assert.equal(unitText(2.52, 'B'), '≈ 1 bottle');
-  assert.equal(unitText(187, 'L'), '204 L');
+  assert.equal(unitText(187, 'L'), '204.4 L');
   assert.equal(unitText(187, 'T'), '11.7 tanake');
 });

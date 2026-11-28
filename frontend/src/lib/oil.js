@@ -25,13 +25,13 @@ export function lastOutflow(movements) {
   return out.length ? out[out.length - 1] : null;
 }
 
-// kg in the chosen display unit: 'L' litres (whole), 'T' tanake (0.1),
+// kg in the chosen display unit: 'L' litres (0.1), 'T' tanake (0.1),
 // 'B' standard 2.75 L bottles (whole).
 export function inUnit(kg, unit) {
   const l = kg / KG_PER_L;
   if (unit === 'T') return Math.round((kg / TANAKE_KG) * 10) / 10;
   if (unit === 'B') return Math.round(l / BOTTLE_L);
-  return Math.round(l);
+  return Math.round(l * 10) / 10;
 }
 
 // Per pressing year, where its oil went (kg). For every year:
