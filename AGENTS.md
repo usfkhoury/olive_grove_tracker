@@ -64,10 +64,6 @@ URLs never opened online are derived from them (`derive`, tested in
 `/assets/*` cache-first; writes, `/api/export/*` and `/api/auth/*` are never
 cached. Bump `VERSION` in `sw.js` to drop old caches.
 
-**Spray weather:** Home always shows Open-Meteo spray windows (next 4 days,
-grove at Bireh ~915 m) (`frontend/src/lib/weather.js`,
-`components/SprayWindow.jsx`). Nothing in the app keys off task names.
-
 ### Hard invariants — do not break
 
 1. **Row id = Notion page uuid.** Legacy `[sqlite:<table>#<n>]` markers were

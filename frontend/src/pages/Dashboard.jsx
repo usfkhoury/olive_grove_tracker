@@ -4,7 +4,6 @@ import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
 import HomeStats from '../components/HomeStats.jsx';
 import LogTaskForm from '../components/LogTaskForm.jsx';
-import SprayWindow from '../components/SprayWindow.jsx';
 import TaskNotes from '../components/TaskNotes.jsx';
 import { latestWindow, taskStatus } from '../lib/season.js';
 
@@ -98,7 +97,6 @@ export default function Dashboard() {
         ))}
         <div style={{ marginTop: 8 }}><Link to="/calendar">Full calendar →</Link></div>
       </div>
-      <SprayWindow />
 
       <details className="card" style={{ marginTop: 16 }}>
         <summary>Export & backup</summary>

@@ -595,14 +595,6 @@ header.topbar .brand {
 /* No-signal banner */
 .offline-banner { margin: 0 0 12px; padding: 8px 12px; border-radius: 10px; background: var(--chip-gold-bg); color: var(--chip-gold-text); font-size: 0.85rem; }
 
-/* Home: spray weather */
-.spray-card { margin-top: 12px; }
-.spray-card .sub { margin-top: 2px; }
-.spray-days { margin-top: 8px; display: grid; gap: 4px; }
-.spray-day { display: flex; justify-content: space-between; gap: 12px; font-size: 0.9rem; }
-.spray-day span { color: var(--olive-dark); font-variant-numeric: tabular-nums; }
-.spray-rule { margin-top: 8px; color: var(--muted); font-size: 0.72rem; }
-
 /* Home: top cards */
 .home-stats { display: grid; gap: 10px; margin-bottom: 8px; }
 .home-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
