@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { today } from '../api.js';
 import { BOTTLE_L, KG_PER_L, SOAP_BATCH_KG, TANAKE_KG } from '../constants.js';
 import { amountLitres, countPlan, unitText, vintageFlows } from '../lib/oil.js';
-import AmountPicker from './AmountPicker.jsx';
+import AmountPicker, { Stepper } from './AmountPicker.jsx';
 import Info from './Info.jsx';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 const r1 = (n) => Math.round(n * 10) / 10;
 const kgOf = (litres) => r2(litres * KG_PER_L);
 const OUT_FOR = [['home', '🏠 Home'], ['gift', '🎁 Gift'], ['sale', '💰 Sale'], ['reserve', '🧼 Soap reserve']];
-const REASONS = [['home', 'Home use'], ['gift', 'Gifts'], ['adjustment', 'Lost / spilled']];
+const WHAT = { home: 'home use', gift: 'gifts', adjustment: 'lost / spilled' };
 const NOTE_HINT = { home: 'Optional', gift: 'Who to, e.g. Amto', sale: 'Who / price', reserve: 'e.g. 2024 leftovers' };
 
 // kg → picker value: whole 2.75 L bottles when it fits, else loose litres.
@@ -194,10 +194,11 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
     ? { T: String(Math.round((reserveKg / TANAKE_KG) * 2) / 2) }
     : { 2.75: String(Math.round(ledgerOf(key) / KG_PER_L / BOTTLE_L)) });
   const [counts, setCounts] = useState({});
-  const [reason, setReason] = useState('home');
+  const [split, setSplit] = useState({}); // year → { gift: bottles, adjustment: bottles }; rest = home
   const get = (key) => counts[key] || start(key);
   const counted = Object.fromEntries(Object.entries(counts).map(([k, v]) => [k, amountLitres(v)]));
-  const plan = countPlan(flows, counted, reason, today());
+  const plan = countPlan(flows, counted, split, today());
+  const setPart = (key, kind) => (v) => setSplit((x) => ({ ...x, [key]: { ...x[key], [kind]: v } }));
 
   const describe = (key) => {
     const v = counts[key];
@@ -208,20 +209,23 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
   };
   const submit = (e) => {
     e.preventDefault();
-    const label = REASONS.find(([k]) => k === reason)[1].toLowerCase();
     save(plan.map((p) => {
       const key = p.vintage ?? 'reserve';
       const what = key === 'reserve'
         ? (p.kind === 'soap' ? 'used for soap, not logged before' : 'moved from cooking oil, not logged before')
-        : (p.amount_kg < 0 ? `${label}, not logged before` : 'more than the ledger');
+        : (p.amount_kg < 0 ? `${WHAT[p.kind]}, not logged before` : 'more than the ledger');
       const name = key === 'reserve' ? 'soap reserve' : `${key} oil`;
       return { ...p, notes: `Stock count of ${name}: ${describe(key)} = ${counted[key]} L; ledger said ${r2(ledgerOf(key) / KG_PER_L)} L (${what})` };
     }));
   };
   const row = (key, title) => {
-    const p = plan.find((x) => String(x.vintage ?? 'reserve') === key);
+    const ps = plan.filter((x) => String(x.vintage ?? 'reserve') === key);
+    const p = ps[0];
     const touched = key in counts;
-    const diffKg = p ? Math.abs(p.amount_kg) : 0;
+    const diffKg = r2(ps.reduce((a, x) => a + Math.abs(x.amount_kg), 0));
+    const short = key !== 'reserve' && p && p.amount_kg < 0;
+    const missing = Math.round(diffKg / KG_PER_L / BOTTLE_L);
+    const homeKg = ps.find((x) => x.kind === 'home')?.amount_kg || 0;
     return (
       <fieldset className={`count-year ${touched ? '' : 'untouched'}`} key={key}>
         <legend>{title} <span className="sub">· ledger {key === 'reserve' ? `${r2(ledgerOf(key))} kg` : unitText(ledgerOf(key), 'B')}</span></legend>
@@ -235,6 +239,19 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
                 : p.amount_kg < 0 ? `${r1(diffKg / KG_PER_L)} L (${unitText(diffKg, 'B')}) went out unlogged`
                   : `${r1(diffKg / KG_PER_L)} L more than the ledger`}`}
         </div>
+        {short && (
+          <div className="split">
+            <div className="sub">Where did they go? Whatever you don't assign counts as home use.</div>
+            <div className="amount-row"><span>🏠 Home use</span><b>{unitText(-homeKg, 'B').replace('≈ ', '')}</b></div>
+            <div className="amount-row"><span>🎁 Gifts (bottles)</span>
+              <Stepper value={split[key]?.gift ?? ''} onChange={setPart(key, 'gift')} label={`${key} gifts`} /></div>
+            <div className="amount-row"><span>Lost / spilled (bottles)</span>
+              <Stepper value={split[key]?.adjustment ?? ''} onChange={setPart(key, 'adjustment')} label={`${key} lost`} /></div>
+            {missing > 0 && (Number(split[key]?.gift) || 0) + (Number(split[key]?.adjustment) || 0) > missing && (
+              <div className="sub warn">Only ≈ {missing} bottles are missing; the extra is ignored.</div>
+            )}
+          </div>
+        )}
       </fieldset>
     );
   };
@@ -243,14 +260,8 @@ function Count({ flows, withStock, reserveKg, movements, saving, save }) {
       <div className="field">Count what's at home <Info term="adjustment" /></div>
       {years.map((y) => row(String(y), `${y} oil`))}
       {showReserve && row('reserve', <>Soap reserve <Info term="soapReserve" /></>)}
-      {plan.some((p) => p.vintage && p.amount_kg < 0) && (
-        <>
-          <div className="field">Oil that went out unlogged was mostly</div>
-          <Chips options={REASONS} value={reason} onChange={setReason} />
-        </>
-      )}
       <button type="submit" disabled={saving || plan.length === 0}>
-        {saving ? 'Saving…' : plan.length ? `Save ${plan.length} correction${plan.length > 1 ? 's' : ''}` : 'Nothing to save yet'}
+        {saving ? 'Saving…' : plan.length ? `Save ${plan.length} entr${plan.length > 1 ? 'ies' : 'y'}` : 'Nothing to save yet'}
       </button>
     </form>
   );

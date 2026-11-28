@@ -607,3 +607,6 @@ header.topbar .brand {
 .panel-foot .secondary, .panel-foot .danger { flex: 1; }
 .stock-panel button[type=submit] { width: 100%; margin-top: 6px; }
 .amount-total { margin-bottom: 6px; }
+.split { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--olive-pale); font-size: 0.88rem; }
+.split .amount-row { padding: 3px 0; }
+.split .warn { color: var(--danger); }

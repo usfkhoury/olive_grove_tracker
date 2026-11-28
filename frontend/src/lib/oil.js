@@ -80,11 +80,12 @@ export function vintageFlows(movements) {
 }
 
 // Stock count → ledger entries. `counted` = { [year]: litres, reserve?: litres }.
-// A year's shortfall is recorded as `reason` ('home' | 'gift' | 'adjustment'
-// = lost), a surplus as a + adjustment, both tagged with the vintage. The soap
+// A year's shortfall is split per `split[year]` = { gift: bottles, adjustment:
+// bottles (lost) } (2.75 L bottles, capped at the shortfall); the rest is home
+// use. A surplus is a + adjustment. All tagged with the vintage. The soap
 // reserve: less than the ledger = soap made; more = cooking oil moved into it.
 // Differences under 0.05 kg are skipped.
-export function countPlan(flows, counted, reason, date) {
+export function countPlan(flows, counted, split, date) {
   const out = [];
   for (const [key, litres] of Object.entries(counted)) {
     const isReserve = key === 'reserve';
@@ -93,8 +94,18 @@ export function countPlan(flows, counted, reason, date) {
       : flows.find((r) => r.year === Number(key))?.stock || 0;
     const diff = r2(Number(litres) * KG_PER_L - ledger);
     if (Math.abs(diff) < 0.05) continue;
-    if (isReserve) out.push({ date, kind: diff < 0 ? 'soap' : 'reserve', amount_kg: -Math.abs(diff) });
-    else out.push({ date, kind: diff < 0 ? reason : 'adjustment', amount_kg: diff, vintage: Number(key) });
+    if (isReserve) { out.push({ date, kind: diff < 0 ? 'soap' : 'reserve', amount_kg: -Math.abs(diff) }); continue; }
+    const vintage = Number(key);
+    if (diff > 0) { out.push({ date, kind: 'adjustment', amount_kg: diff, vintage }); continue; }
+    let left = -diff;
+    const parts = ['gift', 'adjustment'].map((kind) => {
+      const kg = Math.min(left, r2((Number(split[key]?.[kind]) || 0) * BOTTLE_L * KG_PER_L));
+      left = r2(left - kg);
+      return { kind, kg };
+    });
+    for (const { kind, kg } of [{ kind: 'home', kg: left }, ...parts]) {
+      if (kg >= 0.05) out.push({ date, kind, amount_kg: -r2(kg), vintage });
+    }
   }
   return out;
 }
