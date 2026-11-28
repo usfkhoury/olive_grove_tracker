@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
 import api, { fmtDate, today } from '../api.js';
+import HomeStats from '../components/HomeStats.jsx';
 import LogTaskForm from '../components/LogTaskForm.jsx';
 import SeasonBars from '../components/SeasonBars.jsx';
 import SprayWindow from '../components/SprayWindow.jsx';
@@ -12,6 +13,7 @@ import { isSprayTask } from '../lib/weather.js';
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [trees, setTrees] = useState([]);
+  const [movements, setMovements] = useState([]);
   const [error, setError] = useState('');
   const [detailsFor, setDetailsFor] = useState(null);
   const { isOwner } = useAuth();
@@ -20,6 +22,7 @@ export default function Dashboard() {
   useEffect(() => {
     load();
     api.get('/trees').then(setTrees).catch(() => {});
+    api.get('/oil/movements').then(setMovements).catch(() => {});
   }, []);
 
   if (error && !data) return <p className="error">{error}</p>;
@@ -57,27 +60,8 @@ export default function Dashboard() {
       <h1>🫒 Olive Grove</h1>
       {error && <p className="error">{error}</p>}
 
-      <div className="stat-grid">
-        <div className="stat">
-          <div className="value">{data.oil.stock_kg} kg</div>
-          <div className="label">
-            olive oil in stock (~{data.oil.stock_tanake} tanake / {data.oil.stock_liters} L)
-            {data.oil.soap_reserve_kg > 0 && <> · + {data.oil.soap_reserve_kg} kg soap reserve</>}
-          </div>
-        </div>
-        {latest && (
-          <div className="stat">
-            <div className="value">{latest.oil_kg} kg oil</div>
-            <div className="label">
-              season {latest.year}: {latest.olives_kg} kg olives, {latest.ratio}:1 ratio
-            </div>
-          </div>
-        )}
-        <div className="stat">
-          <div className="value">{loggedThisYear.length}/{startedThisYear.length}</div>
-          <div className="label">{year} tasks logged</div>
-        </div>
-      </div>
+      <HomeStats movements={movements} season={latest}
+        tasks={{ year, logged: loggedThisYear.length, started: startedThisYear.length, due }} />
 
       <h2>Due now</h2>
       <div className="card">
