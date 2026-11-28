@@ -54,6 +54,16 @@ standard bottle 2.75 L. Constants live in `frontend/src/constants.js` and the
 top of the summaries section in `netlify/functions/api.js` — keep them equal.
 Harvest oil kg are weighed; Harvest Tanake = oil kg ÷ 16.
 
+**Offline reading:** `frontend/public/sw.js` (registered from `App.jsx`, production
+builds only). Page loads and API GETs are network-first with the last good copy
+as fallback (marked `X-Olive-Offline: 1`, which shows the no-signal banner);
+`/assets/*` cache-first; writes, `/api/export/*` and `/api/auth/*` are never
+cached. Bump `VERSION` in `sw.js` to drop old caches.
+
+**Spray weather:** Home shows Open-Meteo spray windows (next 4 days, grove at
+Bireh ~915 m) only while a due task's name contains "spray"
+(`frontend/src/lib/weather.js`, `components/SprayWindow.jsx`).
+
 ### Hard invariants — do not break
 
 1. **Row id = Notion page uuid.** Legacy `[sqlite:<table>#<n>]` markers were

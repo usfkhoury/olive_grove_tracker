@@ -1,5 +1,9 @@
 import { getStoredToken, AUTH_INVALID_EVENT } from './AuthContext.jsx';
 
+// Fired after every API call: detail = true when there's no signal (the data
+// came from the offline cache, or nothing came back), false otherwise.
+export const OFFLINE_EVENT = 'olive:offline';
+
 async function request(method, path, body) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getStoredToken();
@@ -16,8 +20,10 @@ async function request(method, path, body) {
       ? 'No connection.'
       : 'No connection — not saved. Your entry is still in the form; try again when you have signal.');
     err.status = 0;
+    window.dispatchEvent(new CustomEvent(OFFLINE_EVENT, { detail: true }));
     throw err;
   }
+  window.dispatchEvent(new CustomEvent(OFFLINE_EVENT, { detail: res.headers.get('X-Olive-Offline') === '1' }));
   if (!res.ok) {
     if ((res.status === 401 || res.status === 403) && method !== 'GET') {
       // Signal AuthContext to clear stored token and drop to read-only mode.

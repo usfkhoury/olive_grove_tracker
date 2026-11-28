@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext.jsx';
+import { OFFLINE_EVENT } from './api.js';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import LoginModal from './components/LoginModal.jsx';
 import Activities from './pages/Activities.jsx';
@@ -44,6 +45,14 @@ function useTheme() {
 export default function App() {
   const [theme, toggleTheme] = useTheme();
   const [showLogin, setShowLogin] = useState(false);
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    const on = (e) => setOffline(e.detail);
+    window.addEventListener(OFFLINE_EVENT, on);
+    // Offline reading at the grove (public/sw.js). Production builds only.
+    if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('/sw.js');
+    return () => window.removeEventListener(OFFLINE_EVENT, on);
+  }, []);
   const { isOwner, expired, logout } = useAuth();
   const location = useLocation();
 
@@ -93,6 +102,9 @@ export default function App() {
         />
       )}
       <main>
+        {offline && (
+          <p className="offline-banner">📵 No signal: showing data from your last visit. Changes won't save until you're back online.</p>
+        )}
         {/* Key by path so an error on one screen clears when you navigate away. */}
         <ErrorBoundary key={location.pathname}>
           <Routes>
